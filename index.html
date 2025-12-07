@@ -1,34 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>DMC Content Manager – Page 1</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <h1>DMC Content Manager</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <title>DMC Content Manager – Page 1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top-bar">DMC</header>
 
-  <h2>Page 1 – List of Contents</h2>
+    <div class="app">
+      <aside class="sidebar">
+        <nav class="nav">
+          <a href="#" class="nav-link">Newsletter</a>
+          <a href="#" class="nav-link active">Statischer Content</a>
+        </nav>
+      </aside>
 
-  <p>
-    This is the starting point for the Page 1 prototype.
-  </p>
+      <main class="main">
+        <section class="card">
+          <h1 class="card-title">Statischer Content</h1>
 
-  <section>
-    <h3>Content Blocks (todo)</h3>
-    <p>
-      This section will show a list of content blocks (e.g. Header, Footer,
-      Registration, etc.).
-    </p>
-  </section>
+          <div class="list">
+            <div class="list-header">
+              <div class="list-cell">Data Extension</div>
+              <div class="list-cell actions">Action</div>
+            </div>
 
-  <section>
-    <h3>Variants (todo)</h3>
-    <p>
-      After selecting a content block above, its variants (country/language/type)
-      will appear here.
-    </p>
-  </section>
-</body>
+            <div class="list-row">
+              <div class="list-cell">
+                <a href="#">Header_Translation_DE</a>
+              </div>
+              <div class="list-cell actions">
+                <button class="btn-link">Edit</button>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="list-cell">
+                <a href="#">Footer_Translation_DE</a>
+              </div>
+              <div class="list-cell actions">
+                <button class="btn-link">Edit</button>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="list-cell">
+                <a href="#">Registration_Header_Translation_DE</a>
+              </div>
+              <div class="list-cell actions">
+                <button class="btn-link">Edit</button>
+              </div>
+            </div>
+
+            <div class="list-row">
+              <div class="list-cell">
+                <a href="#">Registration_Footer_Translation_DE</a>
+              </div>
+              <div class="list-cell actions">
+                <button class="btn-link">Edit</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
 </html>
