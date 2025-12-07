@@ -11,98 +11,116 @@
     />
   </head>
   <body>
-    %%[
-      /* Querystring params */
-      VAR @selectedCategoryId,
-          @selectedDataExtensionKey
+  %%[
+  /* Querystring params */
+  VAR @selectedCategoryId,
+      @selectedDataExtensionKey
 
-      SET @selectedCategoryId       = RequestParameter("cat")
-      SET @selectedDataExtensionKey = RequestParameter("de")
+  SET @selectedCategoryId       = RequestParameter("cat")
+  SET @selectedDataExtensionKey = RequestParameter("de")
 
-      /* Category nav data */
-      VAR @categoryRows,
-          @categoryRowCount,
-          @index,
-          @categoryRow,
-          @categoryId,
-          @categoryName,
-          @activeClass,
-          @selectedCategoryName
+  /* soft-delete flags for variants */
+  VAR @deleteFlag,
+      @delCountry,
+      @delLang,
+      @delType,
+      @delVersion,
+      @rowsUpdated
 
-      SET @categoryRows = LookupOrderedRows(
-        "CM_ContentCategory",
-        0,
-        "CreatedDate ASC",
-        "IsActive",
-        "True"
-      )
-      SET @categoryRowCount = RowCount(@categoryRows)
+  SET @deleteFlag = RequestParameter("delete")
+  SET @delCountry = RequestParameter("country")
+  SET @delLang    = RequestParameter("lang")
+  SET @delType    = RequestParameter("type")
+  SET @delVersion = RequestParameter("version")
 
-      /* Content-DataExtension list for page 1 (only when a category is selected
-         AND no data extension is selected yet) */
-      VAR @contentRows,
-          @contentRowCount,
-          @contentIndex,
-          @contentRow,
-          @dataExtensionKey,
-          @contentCategoryId
+  /* If delete=1 and we know which DE + row, set Status = Deleted */
+  IF NOT EMPTY(@selectedDataExtensionKey) AND @deleteFlag == "1" THEN
 
-      IF NOT EMPTY(@selectedCategoryId) AND EMPTY(@selectedDataExtensionKey) THEN
+    /* 4 keys: CountryCode + LanguageCode + Type + Version */
+    SET @rowsUpdated = UpdateData(
+      @selectedDataExtensionKey,
+      4,
+      "CountryCode",  @delCountry,
+      "LanguageCode", @delLang,
+      "Type",         @delType,
+      "Version",      @delVersion,
+      "Status",       "Deleted"
+    )
 
-        SET @selectedCategoryName = Lookup(
-          "CM_ContentCategory",
-          "CategoryName",
-          "CategoryId",
-          @selectedCategoryId
-        )
+  ENDIF
 
-        SET @contentRows = LookupOrderedRows(
-          "CM_ContentDataExtension",
-          0,
-          "CreatedDate ASC",
-          "IsActive", "True",
-          "CategoryId", @selectedCategoryId
-        )
-        SET @contentRowCount = RowCount(@contentRows)
-      ELSE
-        SET @contentRowCount = 0
-      ENDIF
+  /* Category nav data */
+  VAR @categoryRows,
+      @categoryRowCount,
+      @index,
+      @categoryRow,
+      @categoryId,
+      @categoryName,
+      @activeClass,
+      @selectedCategoryName
 
-      /* Variant list for the "after selecting a content" state */
-      VAR @variantRows,
-          @variantRowCount,
-          @variantIndex,
-          @variantRow,
-          @countryCode,
-          @languageCode,
-          @variantType,
-          @variantVersion
+  SET @categoryRows = LookupOrderedRows(
+    "CM_ContentCategory",
+    0,
+    "CreatedDate ASC",
+    "Status",
+    "Active"
+  )
+  SET @categoryRowCount = RowCount(@categoryRows)
 
-      IF NOT EMPTY(@selectedDataExtensionKey) THEN
+  /* NEW: only look up CategoryName once */
+  IF NOT EMPTY(@selectedCategoryId) THEN
+    SET @selectedCategoryName = Lookup(
+      "CM_ContentCategory",
+      "CategoryName",
+      "CategoryId",
+      @selectedCategoryId
+    )
+  ENDIF
 
-        /* Optional: get category name for title when we came via a category */
-        IF NOT EMPTY(@selectedCategoryId) THEN
-          SET @selectedCategoryName = Lookup(
-            "CM_ContentCategory",
-            "CategoryName",
-            "CategoryId",
-            @selectedCategoryId
-          )
-        ENDIF
+  /* Content-DataExtension list for page 1 (only when a category is selected
+     AND no data extension is selected yet) */
+  VAR @contentRows,
+      @contentRowCount,
+      @contentIndex,
+      @contentRow,
+      @dataExtensionKey
 
-        /* Show only active rows for this content block.
-           Assumes Status = Active/Inactive. */
-        SET @variantRows = LookupOrderedRows(
-          @selectedDataExtensionKey,
-          0,
-          "CountryCode ASC, LanguageCode ASC, Type ASC, Version ASC",
-          "Status", "Active"
-        )
-        SET @variantRowCount = RowCount(@variantRows)
-      ELSE
-        SET @variantRowCount = 0
-      ENDIF
-    ]%%
+  IF NOT EMPTY(@selectedCategoryId) AND EMPTY(@selectedDataExtensionKey) THEN
+
+    SET @contentRows = LookupOrderedRows(
+      "CM_ContentDataExtension",
+      0,
+      "CreatedDate ASC",
+      "Status", "Active",
+      "CategoryId", @selectedCategoryId
+    )
+    SET @contentRowCount = RowCount(@contentRows)
+  ENDIF
+
+  /* Variant list for the "after selecting a content" state */
+  VAR @variantRows,
+      @variantRowCount,
+      @variantIndex,
+      @variantRow,
+      @countryCode,
+      @languageCode,
+      @variantType,
+      @variantVersion
+
+  IF NOT EMPTY(@selectedDataExtensionKey) THEN
+
+    /* Show only active rows for this content block. */
+    SET @variantRows = LookupOrderedRows(
+      @selectedDataExtensionKey,
+      0,
+      "CountryCode ASC, LanguageCode ASC, Type ASC, Version ASC",
+      "Status", "Active"
+    )
+    SET @variantRowCount = RowCount(@variantRows)
+  ENDIF
+]%%
+
 
     <header class="top-bar">DMC</header>
 
@@ -148,6 +166,15 @@
               %%[ ENDIF ]%%
             </h1>
 
+            <div style="text-align: right; margin-bottom: 0.5rem;">
+              <a
+                href="%%=IIF(EMPTY(@selectedCategoryId),'?',Concat('?cat=',@selectedCategoryId))=%%"
+                class="btn-link"
+              >
+                ↩ zurück
+              </a>
+            </div>
+
             <!-- Small "Data Extension:" row -->
             <table class="list" style="margin-bottom: 1rem;">
               <tbody>
@@ -186,7 +213,14 @@
                     <td class="actions">
                       <button class="btn-link">edit</button>
                       <button class="btn-link">view</button>
-                      <button class="btn-link">delete</button>
+                      <!-- NEW: soft delete, with confirm -->
+                      <a
+                        class="btn-link"
+                        href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@selectedDataExtensionKey)=%%&delete=1&country=%%=v(@countryCode)=%%&lang=%%=v(@languageCode)=%%&type=%%=v(@variantType)=%%&version=%%=v(@variantVersion)=%%"
+                        onclick="return confirm('Do you really want to delete this variant?');"
+                      >
+                        delete
+                      </a>
                     </td>
                   </tr>
                 %%[ NEXT @variantIndex ELSE ]%%
