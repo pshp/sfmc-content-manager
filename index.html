@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>DMC Content Manager – Page 1</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- <link rel="stylesheet" href="styles.css" /> -->
+    <!-- External CSS hosted in CloudPages -->
     <link
       rel="stylesheet"
       href="https://mcf3ylxg67h42hhkc8yccdpmdjt1.pub.sfmc-content.com/xos4rfhkxdn"
@@ -12,28 +12,23 @@
   </head>
   <body>
     %%[
-      /* Get selected category from querystring */
+      /* Querystring params */
       VAR @selectedCategoryId,
-          @categoryRows,
+          @selectedDataExtensionKey
+
+      SET @selectedCategoryId       = RequestParameter("cat")
+      SET @selectedDataExtensionKey = RequestParameter("de")
+
+      /* Category nav data */
+      VAR @categoryRows,
           @categoryRowCount,
           @index,
           @categoryRow,
           @categoryId,
           @categoryName,
           @activeClass,
-          @selectedCategoryName,
+          @selectedCategoryName
 
-          @contentRows,
-          @contentRowCount,
-          @contentIndex,
-          @contentRow,
-          @dataExtensionKey,
-          @contentCategoryId
-
-      /* ?cat=newsletter or ?cat=static_content, etc. */
-      SET @selectedCategoryId = RequestParameter("cat")
-
-      /* Load all active categories ordered by CreatedDate ASC */
       SET @categoryRows = LookupOrderedRows(
         "CM_ContentCategory",
         0,
@@ -43,10 +38,16 @@
       )
       SET @categoryRowCount = RowCount(@categoryRows)
 
-      /* Load content DE mappings
-        - if a category is selected, filter by CategoryId
-        - if not, show all active rows */
-      IF NOT EMPTY(@selectedCategoryId) THEN
+      /* Content-DataExtension list for page 1 (only when a category is selected
+         AND no data extension is selected yet) */
+      VAR @contentRows,
+          @contentRowCount,
+          @contentIndex,
+          @contentRow,
+          @dataExtensionKey,
+          @contentCategoryId
+
+      IF NOT EMPTY(@selectedCategoryId) AND EMPTY(@selectedDataExtensionKey) THEN
 
         SET @selectedCategoryName = Lookup(
           "CM_ContentCategory",
@@ -62,22 +63,51 @@
           "IsActive", "True",
           "CategoryId", @selectedCategoryId
         )
+        SET @contentRowCount = RowCount(@contentRows)
       ELSE
-        /* No category selected: show all active content DEs */
-        SET @contentRows = LookupOrderedRows(
-          "CM_ContentDataExtension",
-          0,
-          "CreatedDate ASC",
-          "IsActive", "True"
-        )
+        SET @contentRowCount = 0
       ENDIF
 
-      SET @contentRowCount = RowCount(@contentRows)
+      /* Variant list for the "after selecting a content" state */
+      VAR @variantRows,
+          @variantRowCount,
+          @variantIndex,
+          @variantRow,
+          @countryCode,
+          @languageCode,
+          @variantType,
+          @variantVersion
+
+      IF NOT EMPTY(@selectedDataExtensionKey) THEN
+
+        /* Optional: get category name for title when we came via a category */
+        IF NOT EMPTY(@selectedCategoryId) THEN
+          SET @selectedCategoryName = Lookup(
+            "CM_ContentCategory",
+            "CategoryName",
+            "CategoryId",
+            @selectedCategoryId
+          )
+        ENDIF
+
+        /* Show only active rows for this content block.
+           Assumes Status = Active/Inactive. */
+        SET @variantRows = LookupOrderedRows(
+          @selectedDataExtensionKey,
+          0,
+          "CountryCode ASC, LanguageCode ASC, Type ASC, Version ASC",
+          "Status", "Active"
+        )
+        SET @variantRowCount = RowCount(@variantRows)
+      ELSE
+        SET @variantRowCount = 0
+      ENDIF
     ]%%
 
     <header class="top-bar">DMC</header>
 
     <div class="app">
+      <!-- LEFT NAV -->
       <aside class="sidebar">
         <nav class="nav">
           %%[ IF @categoryRowCount > 0 THEN
@@ -86,7 +116,6 @@
                  SET @categoryId   = Field(@categoryRow, "CategoryId")
                  SET @categoryName = Field(@categoryRow, "CategoryName")
 
-                 /* Only mark active if a cat value was passed and it matches */
                  IF NOT EMPTY(@selectedCategoryId) AND @categoryId == @selectedCategoryId THEN
                    SET @activeClass = " active"
                  ELSE
@@ -103,49 +132,125 @@
         </nav>
       </aside>
 
+      <!-- MAIN CARD -->
       <main class="main">
         <section class="card">
-          <h1 class="card-title">
-            %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
-              %%=v(@selectedCategoryName)=%%
+          %%[ IF NOT EMPTY(@selectedDataExtensionKey) THEN ]%%
+            <!-- ========================================= -->
+            <!-- AFTER SELECTING A CONTENT (variants list) -->
+            <!-- ========================================= -->
+
+            <h1 class="card-title">
+              %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
+                %%=v(@selectedCategoryName)=%% - %%=v(@selectedDataExtensionKey)=%%
+              %%[ ELSE ]%%
+                %%=v(@selectedDataExtensionKey)=%%
+              %%[ ENDIF ]%%
+            </h1>
+
+            <!-- Small "Data Extension:" row -->
+            <table class="list" style="margin-bottom: 1rem;">
+              <tbody>
+                <tr>
+                  <th>Data Extension:</th>
+                  <td>%%=v(@selectedDataExtensionKey)=%%</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Main variants grid -->
+            <table class="list">
+              <thead>
+                <tr>
+                  <th>Land</th>
+                  <th>Sprache</th>
+                  <th>Typ</th>
+                  <th>Version</th>
+                  <th class="actions">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                %%[ IF @variantRowCount > 0 THEN
+                     FOR @variantIndex = 1 TO @variantRowCount DO
+                       SET @variantRow     = Row(@variantRows, @variantIndex)
+                       SET @countryCode    = Field(@variantRow, "CountryCode")
+                       SET @languageCode   = Field(@variantRow, "LanguageCode")
+                       SET @variantType    = Field(@variantRow, "Type")
+                       SET @variantVersion = Field(@variantRow, "Version")
+                ]%%
+                  <tr>
+                    <td>%%=v(@countryCode)=%%</td>
+                    <td>%%=v(@languageCode)=%%</td>
+                    <td>%%=v(@variantType)=%%</td>
+                    <td>%%=v(@variantVersion)=%%</td>
+                    <td class="actions">
+                      <button class="btn-link">edit</button>
+                      <button class="btn-link">view</button>
+                      <button class="btn-link">delete</button>
+                    </td>
+                  </tr>
+                %%[ NEXT @variantIndex ELSE ]%%
+                  <tr>
+                    <td colspan="5">No active variants found.</td>
+                  </tr>
+                %%[ ENDIF ]%%
+              </tbody>
+            </table>
+
+          %%[ ELSE ]%%
+            <!-- ========================================= -->
+            <!-- INITIAL STATE / CONTENT-DE LIST FOR CAT   -->
+            <!-- ========================================= -->
+
+            <h1 class="card-title">
+              %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
+                %%=v(@selectedCategoryName)=%%
+              %%[ ELSE ]%%
+                Select a category
+              %%[ ENDIF ]%%
+            </h1>
+
+            %%[ IF NOT EMPTY(@selectedCategoryId) THEN ]%%
+              <!-- Only show the table once a category is chosen -->
+              <table class="list">
+                <thead>
+                  <tr>
+                    <th>Data Extension</th>
+                    <th class="actions">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  %%[ IF @contentRowCount > 0 THEN
+                       FOR @contentIndex = 1 TO @contentRowCount DO
+                         SET @contentRow       = Row(@contentRows, @contentIndex)
+                         SET @dataExtensionKey = Field(@contentRow, "DataExtensionKey")
+                  ]%%
+                    <tr>
+                      <td>
+                        <!-- same page, but now with ?cat=...&de=... -->
+                        <a href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@dataExtensionKey)=%%">
+                          %%=v(@dataExtensionKey)=%%
+                        </a>
+                      </td>
+                      <td class="actions">
+                        <button class="btn-link">✏️</button>
+                      </td>
+                    </tr>
+                  %%[ NEXT @contentIndex ELSE ]%%
+                    <tr>
+                      <td colspan="2">
+                        No content data extensions found for this category.
+                      </td>
+                    </tr>
+                  %%[ ENDIF ]%%
+                </tbody>
+              </table>
             %%[ ELSE ]%%
-              All Content
+              <!-- First load: no category yet -->
+              <p>Please select a category from the left to see its content data extensions.</p>
             %%[ ENDIF ]%%
-          </h1>
 
-          <div class="list">
-            <div class="list-header">
-              <div class="list-cell">Data Extension</div>
-              <div class="list-cell actions">Action</div>
-            </div>
-
-            %%[ IF @contentRowCount > 0 THEN
-                 FOR @contentIndex = 1 TO @contentRowCount DO
-                   SET @contentRow        = Row(@contentRows, @contentIndex)
-                   SET @dataExtensionKey  = Field(@contentRow, "DataExtensionKey")
-                   SET @contentCategoryId = Field(@contentRow, "CategoryId")
-            ]%%
-            <div class="list-row">
-              <div class="list-cell">
-                <!-- Later this will link to Page 2: ?cat=...&de=... -->
-                <a href="href="?cat=%%=v(@categoryId)=%%?"">
-                  %%=v(@dataExtensionKey)=%%
-                </a>
-              </div>
-              <div class="list-cell actions">
-                <button class="btn-link">Edit</button>
-              </div>
-            </div>
-            %%[      NEXT @contentIndex
-                ELSE ]%%
-            <div class="list-row">
-              <div class="list-cell">
-                No content data extensions found.
-              </div>
-              <div class="list-cell actions"></div>
-            </div>
-            %%[ ENDIF ]%%
-          </div>
+          %%[ ENDIF ]%%
         </section>
       </main>
     </div>
