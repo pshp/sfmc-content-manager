@@ -4,16 +4,61 @@
     <meta charset="UTF-8" />
     <title>DMC Content Manager – Page 1</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="styles.css" />
+    <!-- <link rel="stylesheet" href="styles.css" /> -->
+    <link
+      rel="stylesheet"
+      href="https://mcf3ylxg67h42hhkc8yccdpmdjt1.pub.sfmc-content.com/xos4rfhkxdn"
+    />
   </head>
   <body>
+    %%[
+      /* Get selected category from querystring */
+      VAR @selectedCategoryId,
+          @categoryRows,
+          @categoryRowCount,
+          @index,
+          @categoryRow,
+          @categoryId,
+          @categoryName,
+          @activeClass
+
+      SET @selectedCategoryId = RequestParameter("cat")
+
+      /* Load all active categories ordered for the nav */
+      SET @categoryRows = LookupOrderedRows(
+        "CM_ContentCategory",
+        0,
+        "DisplayOrder ASC",
+        "IsActive",
+        "True"
+      )
+      SET @categoryRowCount = RowCount(@categoryRows)
+    ]%%
+
     <header class="top-bar">DMC</header>
 
     <div class="app">
       <aside class="sidebar">
         <nav class="nav">
-          <a href="#" class="nav-link">Newsletter</a>
-          <a href="#" class="nav-link active">Statischer Content</a>
+          %%[ IF @categoryRowCount > 0 THEN
+               FOR @index = 1 TO @categoryRowCount DO
+                 SET @categoryRow  = Row(@categoryRows, @index)
+                 SET @categoryId   = Field(@categoryRow, "CategoryId")
+                 SET @categoryName = Field(@categoryRow, "CategoryName")
+
+                 IF @categoryId == @selectedCategoryId THEN
+                   SET @activeClass = " active"
+                 ELSE
+                   SET @activeClass = ""
+                 ENDIF
+          ]%%
+          <a href="?cat=%%=v(@categoryId)=%%"
+             class="nav-link%%=v(@activeClass)=%%">
+            %%=v(@categoryName)=%%
+          </a>
+          %%[    NEXT @index
+              ENDIF
+          ]%%
         </nav>
       </aside>
 
