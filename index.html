@@ -68,7 +68,6 @@
   )
   SET @categoryRowCount = RowCount(@categoryRows)
 
-  /* NEW: only look up CategoryName once */
   IF NOT EMPTY(@selectedCategoryId) THEN
     SET @selectedCategoryName = Lookup(
       "CM_ContentCategory",
@@ -78,8 +77,8 @@
     )
   ENDIF
 
-  /* Content-DataExtension list for page 1 (only when a category is selected
-     AND no data extension is selected yet) */
+  /* Content-DataExtension list - when a category is selected
+     and no data extension is selected yet */
   VAR @contentRows,
       @contentRowCount,
       @contentIndex,
@@ -98,7 +97,7 @@
     SET @contentRowCount = RowCount(@contentRows)
   ENDIF
 
-  /* Variant list for the "after selecting a content" state */
+  /* Variant list after selecting a content */
   VAR @variantRows,
       @variantRowCount,
       @variantIndex,
@@ -154,9 +153,7 @@
       <main class="main">
         <section class="card">
           %%[ IF NOT EMPTY(@selectedDataExtensionKey) THEN ]%%
-            <!-- ========================================= -->
             <!-- AFTER SELECTING A CONTENT (variants list) -->
-            <!-- ========================================= -->
 
             <h1 class="card-title">
               %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
@@ -175,7 +172,6 @@
               </a>
             </div>
 
-            <!-- Small "Data Extension:" row -->
             <table class="list" style="margin-bottom: 1rem;">
               <tbody>
                 <tr>
@@ -213,7 +209,7 @@
                     <td class="actions">
                       <button class="btn-link">edit</button>
                       <button class="btn-link">view</button>
-                      <!-- NEW: soft delete, with confirm -->
+                      <!-- soft delete with confirm -->
                       <a
                         class="btn-link"
                         href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@selectedDataExtensionKey)=%%&delete=1&country=%%=v(@countryCode)=%%&lang=%%=v(@languageCode)=%%&type=%%=v(@variantType)=%%&version=%%=v(@variantVersion)=%%"
@@ -232,9 +228,7 @@
             </table>
 
           %%[ ELSE ]%%
-            <!-- ========================================= -->
-            <!-- INITIAL STATE / CONTENT-DE LIST FOR CAT   -->
-            <!-- ========================================= -->
+            <!-- INITIAL STATE / CONTENT-DE LIST FOR CATEGORY   -->
 
             <h1 class="card-title">
               %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
@@ -261,7 +255,6 @@
                   ]%%
                     <tr>
                       <td>
-                        <!-- same page, but now with ?cat=...&de=... -->
                         <a href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@dataExtensionKey)=%%">
                           %%=v(@dataExtensionKey)=%%
                         </a>
@@ -280,7 +273,7 @@
                 </tbody>
               </table>
             %%[ ELSE ]%%
-              <!-- First load: no category yet -->
+              <!-- First load, no category yet -->
               <p>Please select a category from the left to see its content data extensions.</p>
             %%[ ENDIF ]%%
 
