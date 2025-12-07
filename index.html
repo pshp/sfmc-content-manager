@@ -20,19 +20,59 @@
           @categoryRow,
           @categoryId,
           @categoryName,
-          @activeClass
+          @activeClass,
+          @selectedCategoryName,
 
+          @contentRows,
+          @contentRowCount,
+          @contentIndex,
+          @contentRow,
+          @dataExtensionKey,
+          @contentCategoryId
+
+      /* ?cat=newsletter or ?cat=static_content, etc. */
       SET @selectedCategoryId = RequestParameter("cat")
 
-      /* Load all active categories ordered for the nav */
+      /* Load all active categories ordered by CreatedDate ASC */
       SET @categoryRows = LookupOrderedRows(
         "CM_ContentCategory",
         0,
-        "DisplayOrder ASC",
+        "CreatedDate ASC",
         "IsActive",
         "True"
       )
       SET @categoryRowCount = RowCount(@categoryRows)
+
+      /* Load content DE mappings
+        - if a category is selected, filter by CategoryId
+        - if not, show all active rows */
+      IF NOT EMPTY(@selectedCategoryId) THEN
+
+        SET @selectedCategoryName = Lookup(
+          "CM_ContentCategory",
+          "CategoryName",
+          "CategoryId",
+          @selectedCategoryId
+        )
+
+        SET @contentRows = LookupOrderedRows(
+          "CM_ContentDataExtension",
+          0,
+          "CreatedDate ASC",
+          "IsActive", "True",
+          "CategoryId", @selectedCategoryId
+        )
+      ELSE
+        /* No category selected: show all active content DEs */
+        SET @contentRows = LookupOrderedRows(
+          "CM_ContentDataExtension",
+          0,
+          "CreatedDate ASC",
+          "IsActive", "True"
+        )
+      ENDIF
+
+      SET @contentRowCount = RowCount(@contentRows)
     ]%%
 
     <header class="top-bar">DMC</header>
@@ -46,7 +86,8 @@
                  SET @categoryId   = Field(@categoryRow, "CategoryId")
                  SET @categoryName = Field(@categoryRow, "CategoryName")
 
-                 IF @categoryId == @selectedCategoryId THEN
+                 /* Only mark active if a cat value was passed and it matches */
+                 IF NOT EMPTY(@selectedCategoryId) AND @categoryId == @selectedCategoryId THEN
                    SET @activeClass = " active"
                  ELSE
                    SET @activeClass = ""
@@ -64,7 +105,13 @@
 
       <main class="main">
         <section class="card">
-          <h1 class="card-title">Statischer Content</h1>
+          <h1 class="card-title">
+            %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
+              %%=v(@selectedCategoryName)=%%
+            %%[ ELSE ]%%
+              All Content
+            %%[ ENDIF ]%%
+          </h1>
 
           <div class="list">
             <div class="list-header">
@@ -72,41 +119,32 @@
               <div class="list-cell actions">Action</div>
             </div>
 
+            %%[ IF @contentRowCount > 0 THEN
+                 FOR @contentIndex = 1 TO @contentRowCount DO
+                   SET @contentRow        = Row(@contentRows, @contentIndex)
+                   SET @dataExtensionKey  = Field(@contentRow, "DataExtensionKey")
+                   SET @contentCategoryId = Field(@contentRow, "CategoryId")
+            ]%%
             <div class="list-row">
               <div class="list-cell">
-                <a href="#">Header_Translation_DE</a>
+                <!-- Later this will link to Page 2: ?cat=...&de=... -->
+                <a href="href="?cat=%%=v(@categoryId)=%%?"">
+                  %%=v(@dataExtensionKey)=%%
+                </a>
               </div>
               <div class="list-cell actions">
                 <button class="btn-link">Edit</button>
               </div>
             </div>
-
+            %%[      NEXT @contentIndex
+                ELSE ]%%
             <div class="list-row">
               <div class="list-cell">
-                <a href="#">Footer_Translation_DE</a>
+                No content data extensions found.
               </div>
-              <div class="list-cell actions">
-                <button class="btn-link">Edit</button>
-              </div>
+              <div class="list-cell actions"></div>
             </div>
-
-            <div class="list-row">
-              <div class="list-cell">
-                <a href="#">Registration_Header_Translation_DE</a>
-              </div>
-              <div class="list-cell actions">
-                <button class="btn-link">Edit</button>
-              </div>
-            </div>
-
-            <div class="list-row">
-              <div class="list-cell">
-                <a href="#">Registration_Footer_Translation_DE</a>
-              </div>
-              <div class="list-cell actions">
-                <button class="btn-link">Edit</button>
-              </div>
-            </div>
+            %%[ ENDIF ]%%
           </div>
         </section>
       </main>
