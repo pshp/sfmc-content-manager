@@ -160,9 +160,6 @@
                 %%[
                   IF @variantRowCount > 0 THEN
 
-                    VAR @visibleCount
-                    SET @visibleCount = 0
-
                     FOR @variantIndex = 1 TO @variantRowCount DO
                       SET @variantRow               = Row(@variantRows, @variantIndex)
                       SET @countryCode              = Field(@variantRow, "CountryCode")
@@ -170,8 +167,6 @@
                       SET @variantType              = Field(@variantRow, "Type")
                       SET @variantVersion           = Field(@variantRow, "Version")
                       SET @variantContentVersion    = Field(@variantRow, "ContentVersion")
-                      SET @variantStatus            = Field(@variantRow, "Status")
-                      SET @variantIsLatest          = Field(@variantRow, "IsLatest")
                 ]%%
                         <tr>
                           <td>%%=v(@countryCode)=%%</td>
