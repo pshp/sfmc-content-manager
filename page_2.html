@@ -1,57 +1,31 @@
-%%[
-  SET @selectedCategoryId       = RequestParameter("cat")
-  SET @selectedDataExtensionKey = RequestParameter("de")
-  SET @countryCode              = RequestParameter("country")
-  SET @languageCode             = RequestParameter("lang")
-  SET @variantType              = RequestParameter("type")
-  SET @variantVersion           = RequestParameter("version")
+%%[ /* --- Querystring --- */ SET @selectedCategoryId = RequestParameter("cat")
+SET @selectedDataExtensionKey = RequestParameter("de") SET @countryCode =
+RequestParameter("country") SET @languageCode = RequestParameter("lang") SET
+@variantType = RequestParameter("type") SET @variantVersion =
+RequestParameter("version") /* --- Category name --- */ IF NOT
+EMPTY(@selectedCategoryId) THEN SET @selectedCategoryName = Lookup(
+"CM_ContentCategory", "CategoryName", "CategoryId", @selectedCategoryId ) ENDIF
+/* Defaults */ SET @contentVersion = "" SET @status = "" SET @versionRowCount =
+0 /* --- One lookup for ALL versions of this variant --- */ IF NOT
+EMPTY(@selectedDataExtensionKey) AND NOT EMPTY(@countryCode) AND NOT
+EMPTY(@languageCode) AND NOT EMPTY(@variantType) AND NOT EMPTY(@variantVersion)
+THEN SET @versionRows = LookupOrderedRows( @selectedDataExtensionKey, 0, /* 0 =
+ALL rows */ "ContentVersion DESC", "IsDeleted", "0", "CountryCode",
+@countryCode, "LanguageCode", @languageCode, "Type", @variantType, "Version",
+@variantVersion ) SET @versionRowCount = RowCount(@versionRows) /* Latest
+version = first row in this ordered set */ IF @versionRowCount > 0 THEN SET
+@latestRow = Row(@versionRows, 1) SET @contentVersion = Field(@latestRow,
+"ContentVersion") SET @status = Field(@latestRow, "Status") ENDIF ENDIF ]%%
 
-  IF NOT EMPTY(@selectedCategoryId) THEN
-    SET @selectedCategoryName = Lookup(
-      "CM_ContentCategory",
-      "CategoryName",
-      "CategoryId",
-      @selectedCategoryId
-    )
-  ENDIF
+<h1 class="card-title">%%=v(@selectedCategoryName)=%%</h1>
 
-  IF NOT EMPTY(@selectedDataExtensionKey)
-    AND NOT EMPTY(@countryCode)
-    AND NOT EMPTY(@languageCode)
-    AND NOT EMPTY(@variantType)
-    AND NOT EMPTY(@variantVersion)
-  THEN
-
-    SET @latestRows = LookupOrderedRows(
-      @selectedDataExtensionKey,
-      1,
-      "ContentVersion DESC",
-      "IsDeleted",   "0",
-      "CountryCode", @countryCode,
-      "LanguageCode",@languageCode,
-      "Type",        @variantType,
-      "Version",     @variantVersion
-    )
-
-    IF RowCount(@latestRows) > 0 THEN
-      SET @latestRow      = Row(@latestRows, 1)
-      SET @contentVersion = Field(@latestRow, "ContentVersion")
-      SET @status         = Field(@latestRow, "Status")
-    ENDIF
-
- ENDIF
-]%%
-
-<h1 class="card-title">
-    %%=v(@selectedCategoryName)=%%
-</h1>
-
-<div style="text-align: right; margin-bottom: 0.5rem;">
-  <a class="btn-link"
+<div style="text-align: right; margin-bottom: 0.5rem">
+  <a
+    class="btn-link"
     href="%%=Concat(
             CloudPagesURL(3637),
-            '?cat=',     @selectedCategoryId,
-            '&de=',      @selectedDataExtensionKey
+            '?cat=', @selectedCategoryId,
+            '&de=',  @selectedDataExtensionKey
           )=%%"
   >
     ↩ back
@@ -59,7 +33,7 @@
 </div>
 
 <!-- section 1 - static details table -->
-<table class="list" style="margin-bottom: 1rem;">
+<table class="list" style="margin-bottom: 1rem">
   <tbody>
     <tr>
       <th>Data Extension:</th>
@@ -89,5 +63,37 @@
       <th>Status:</th>
       <td>%%=IIF(EMPTY(@status),'–',@status)=%%</td>
     </tr>
+  </tbody>
+</table>
+
+<h2 style="margin-top: 1.5rem">Version history</h2>
+
+<table class="list">
+  <thead>
+    <tr>
+      <th>Content Version</th>
+      <th>Status</th>
+      <th>Last Modified Date</th>
+      <th class="actions">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    %%[ IF @versionRowCount > 0 THEN ]%% %%[ FOR @i = 1 TO @versionRowCount DO
+    SET @row = Row(@versionRows, @i) SET @cv = Field(@row, "ContentVersion") SET
+    @cvStatus = Field(@row, "Status") SET @cvLastModified = Field(@row,
+    "ModifiedDate") ]%%
+    <tr>
+      <td>%%=v(@cv)=%%</td>
+      <td>%%=v(@cvStatus)=%%</td>
+      <td>%%=v(@cvLastModified)=%%</td>
+      <td class="actions">
+        <!-- Activate / Deactivate buttons will go here -->
+      </td>
+    </tr>
+    %%[ NEXT @i ]%% %%[ ELSE ]%%
+    <tr>
+      <td colspan="4">No versions found for this variant.</td>
+    </tr>
+    %%[ ENDIF ]%%
   </tbody>
 </table>
