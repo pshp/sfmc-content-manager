@@ -1,0 +1,38 @@
+%%[
+  /* read category from querystring for active state */
+  SET @selectedCategoryId = RequestParameter("cat")
+
+  /* Category nav data */
+  SET @categoryRows = LookupOrderedRows(
+    "CM_ContentCategory",
+    0,
+    "CreatedDate ASC",
+    "Status",
+    "Active"
+  )
+  SET @categoryRowCount = RowCount(@categoryRows)
+]%%
+
+<aside class="sidebar">
+  <nav class="nav">
+    %%[ IF @categoryRowCount > 0 THEN
+         FOR @index = 1 TO @categoryRowCount DO
+           SET @categoryRow  = Row(@categoryRows, @index)
+           SET @categoryId   = Field(@categoryRow, "CategoryId")
+           SET @categoryName = Field(@categoryRow, "CategoryName")
+
+           IF NOT EMPTY(@selectedCategoryId) AND @categoryId == @selectedCategoryId THEN
+             SET @activeClass = " active"
+           ELSE
+             SET @activeClass = ""
+           ENDIF
+    ]%%
+      <a href="%%=CloudPagesUrl(3637,'cat',@categoryId)=%%"
+         class="nav-link%%=v(@activeClass)=%%">
+        %%=v(@categoryName)=%%
+      </a>
+    %%[ NEXT @index ELSE ]%%
+      <p>No categories found.</p>
+    %%[ ENDIF ]%%
+  </nav>
+</aside>
