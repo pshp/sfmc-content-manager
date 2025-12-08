@@ -1,1 +1,93 @@
-hello page 2
+%%[
+  SET @selectedCategoryId       = RequestParameter("cat")
+  SET @selectedDataExtensionKey = RequestParameter("de")
+  SET @countryCode              = RequestParameter("country")
+  SET @languageCode             = RequestParameter("lang")
+  SET @variantType              = RequestParameter("type")
+  SET @variantVersion           = RequestParameter("version")
+
+  IF NOT EMPTY(@selectedCategoryId) THEN
+    SET @selectedCategoryName = Lookup(
+      "CM_ContentCategory",
+      "CategoryName",
+      "CategoryId",
+      @selectedCategoryId
+    )
+  ENDIF
+
+  IF NOT EMPTY(@selectedDataExtensionKey)
+    AND NOT EMPTY(@countryCode)
+    AND NOT EMPTY(@languageCode)
+    AND NOT EMPTY(@variantType)
+    AND NOT EMPTY(@variantVersion)
+  THEN
+
+    SET @latestRows = LookupOrderedRows(
+      @selectedDataExtensionKey,
+      1,
+      "ContentVersion DESC",
+      "IsDeleted",   "0",
+      "CountryCode", @countryCode,
+      "LanguageCode",@languageCode,
+      "Type",        @variantType,
+      "Version",     @variantVersion
+    )
+
+    IF RowCount(@latestRows) > 0 THEN
+      SET @latestRow      = Row(@latestRows, 1)
+      SET @contentVersion = Field(@latestRow, "ContentVersion")
+      SET @status         = Field(@latestRow, "Status")
+    ENDIF
+
+ ENDIF
+]%%
+
+<h1 class="card-title">
+    %%=v(@selectedCategoryName)=%%
+</h1>
+
+<div style="text-align: right; margin-bottom: 0.5rem;">
+  <a class="btn-link"
+    href="%%=Concat(
+            CloudPagesURL(3637),
+            '?cat=',     @selectedCategoryId,
+            '&de=',      @selectedDataExtensionKey
+          )=%%"
+  >
+    ↩ back
+  </a>
+</div>
+
+<!-- section 1 - static details table -->
+<table class="list" style="margin-bottom: 1rem;">
+  <tbody>
+    <tr>
+      <th>Data Extension:</th>
+      <td>%%=v(@selectedDataExtensionKey)=%%</td>
+    </tr>
+    <tr>
+      <th>Country:</th>
+      <td>%%=v(@countryCode)=%%</td>
+    </tr>
+    <tr>
+      <th>Language:</th>
+      <td>%%=v(@languageCode)=%%</td>
+    </tr>
+    <tr>
+      <th>Type:</th>
+      <td>%%=v(@variantType)=%%</td>
+    </tr>
+    <tr>
+      <th>Version:</th>
+      <td>%%=v(@variantVersion)=%%</td>
+    </tr>
+    <tr>
+      <th>Content Version:</th>
+      <td>%%=IIF(EMPTY(@contentVersion),'–',@contentVersion)=%%</td>
+    </tr>
+    <tr>
+      <th>Status:</th>
+      <td>%%=IIF(EMPTY(@status),'–',@status)=%%</td>
+    </tr>
+  </tbody>
+</table>

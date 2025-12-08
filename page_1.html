@@ -122,7 +122,20 @@
               <td>%%=v(@variantVersion)=%%</td>
               <td>%%=v(@variantContentVersion)=%%</td>
               <td class="actions">
-                <a class="btn-link" href="#">edit</a>
+                <!-- link to page 2 - view for specific content variant -->
+                <a
+                  class="btn-link"
+                  href="%%=Concat(
+                            CloudPagesURL(3638),
+                            '?cat=',     @selectedCategoryId,
+                            '&de=',      @selectedDataExtensionKey,
+                            '&country=', @countryCode,
+                            '&lang=',    @languageCode,
+                            '&type=',    @variantType,
+                            '&version=', @variantVersion
+                          )=%%"
+                >
+                  edit</a>
                 <a class="btn-link" href="#">view</a>
                 <!-- soft delete with confirm -->
                 <a
