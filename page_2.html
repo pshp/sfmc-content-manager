@@ -1,21 +1,152 @@
-%%[ /* --- Querystring --- */ SET @selectedCategoryId = RequestParameter("cat")
-SET @selectedDataExtensionKey = RequestParameter("de") SET @countryCode =
-RequestParameter("country") SET @languageCode = RequestParameter("lang") SET
-@variantType = RequestParameter("type") SET @variantVersion =
-RequestParameter("version") /* --- Category name --- */ IF NOT
-EMPTY(@selectedCategoryId) THEN SET @selectedCategoryName = Lookup(
-"CM_ContentCategory", "CategoryName", "CategoryId", @selectedCategoryId ) ENDIF
-/* Defaults */ SET @contentVersion = "" SET @status = "" SET @versionRowCount =
-0 /* --- One lookup for ALL versions of this variant --- */ IF NOT
-EMPTY(@selectedDataExtensionKey) AND NOT EMPTY(@countryCode) AND NOT
-EMPTY(@languageCode) AND NOT EMPTY(@variantType) AND NOT EMPTY(@variantVersion)
-THEN SET @versionRows = LookupOrderedRows( @selectedDataExtensionKey, 0, /* 0 =
-ALL rows */ "ContentVersion DESC", "IsDeleted", "0", "CountryCode",
-@countryCode, "LanguageCode", @languageCode, "Type", @variantType, "Version",
-@variantVersion ) SET @versionRowCount = RowCount(@versionRows) /* Latest
-version = first row in this ordered set */ IF @versionRowCount > 0 THEN SET
-@latestRow = Row(@versionRows, 1) SET @contentVersion = Field(@latestRow,
-"ContentVersion") SET @status = Field(@latestRow, "Status") ENDIF ENDIF ]%%
+%%[
+  /* --- Querystring --- */
+  SET @selectedCategoryId       = RequestParameter("cat")
+  SET @selectedDataExtensionKey = RequestParameter("de")
+  SET @countryCode              = RequestParameter("country")
+  SET @languageCode             = RequestParameter("lang")
+  SET @variantType              = RequestParameter("type")
+  SET @variantVersion           = RequestParameter("version")
+
+  /* Action params for version status changes */
+  SET @action   = RequestParameter("action")     /* 'activate' or 'deactivate' */
+  SET @targetCv = RequestParameter("cv")         /* target ContentVersion */
+
+  /* --- Category name --- */
+  IF NOT EMPTY(@selectedCategoryId) THEN
+    SET @selectedCategoryName = Lookup(
+      "CM_ContentCategory",
+      "CategoryName",
+      "CategoryId",
+      @selectedCategoryId
+    )
+  ENDIF
+
+  /* --- Handle activate / deactivate actions --- */
+  IF NOT EMPTY(@action) AND NOT EMPTY(@targetCv) AND
+     NOT EMPTY(@selectedDataExtensionKey) AND
+     NOT EMPTY(@countryCode) AND NOT EMPTY(@languageCode) AND
+     NOT EMPTY(@variantType) AND NOT EMPTY(@variantVersion) THEN
+
+    /* All rows for this variant (all ContentVersions) */
+    SET @allRows = LookupRows(
+      @selectedDataExtensionKey,
+      "IsDeleted",   "0",
+      "CountryCode",  @countryCode,
+      "LanguageCode", @languageCode,
+      "Type",         @variantType,
+      "Version",      @variantVersion
+    )
+    SET @allCount = RowCount(@allRows)
+
+    IF @action == "activate" THEN
+
+      /* 1) Deactivate any currently active versions for this variant */
+      IF @allCount > 0 THEN
+        FOR @j = 1 TO @allCount DO
+          SET @row       = Row(@allRows, @j)
+          SET @rowCv     = Field(@row, "ContentVersion")
+          SET @rowStatus = Field(@row, "Status")
+
+          IF @rowStatus == "Active" THEN
+            /* Set to Inactive */
+            UpdateData(
+              @selectedDataExtensionKey,
+              5,
+              "CountryCode",     @countryCode,
+              "LanguageCode",    @languageCode,
+              "Type",            @variantType,
+              "Version",         @variantVersion,
+              "ContentVersion",  @rowCv,
+              "Status",          "Inactive",
+              "ModifiedDate",    Now()
+            )
+          ENDIF
+        NEXT @j
+      ENDIF
+
+      /* 2) Set target version to Active */
+      UpdateData(
+        @selectedDataExtensionKey,
+        5,
+        "CountryCode",     @countryCode,
+        "LanguageCode",    @languageCode,
+        "Type",            @variantType,
+        "Version",         @variantVersion,
+        "ContentVersion",  @targetCv,
+        "Status",          "Active",
+        "ModifiedDate",    Now()
+      )
+
+    ELSEIF @action == "deactivate" THEN
+
+      /* Just deactivate the selected version */
+      UpdateData(
+        @selectedDataExtensionKey,
+        5,
+        "CountryCode",     @countryCode,
+        "LanguageCode",    @languageCode,
+        "Type",            @variantType,
+        "Version",         @variantVersion,
+        "ContentVersion",  @targetCv,
+        "Status",          "Inactive",
+        "ModifiedDate",    Now()
+      )
+
+    ENDIF
+  ENDIF
+
+  /* Defaults for header */
+  SET @versionRowCount       = 0
+
+  SET @latestContentVersion  = ""
+  SET @latestStatus          = ""
+
+  SET @activeContentVersion  = ""
+
+  /* --- One lookup for ALL versions of this variant (after any updates) --- */
+  IF NOT EMPTY(@selectedDataExtensionKey) AND NOT EMPTY(@countryCode) AND
+     NOT EMPTY(@languageCode) AND NOT EMPTY(@variantType) AND NOT EMPTY(@variantVersion) THEN
+
+    /* All versions for history + latest */
+    SET @versionRows = LookupOrderedRows(
+      @selectedDataExtensionKey,
+      0, /* 0 = ALL rows */
+      "ContentVersion DESC",
+      "IsDeleted",   "0",
+      "CountryCode",  @countryCode,
+      "LanguageCode", @languageCode,
+      "Type",         @variantType,
+      "Version",      @variantVersion
+    )
+    SET @versionRowCount = RowCount(@versionRows)
+
+    /* Latest version = first row in this ordered set */
+    IF @versionRowCount > 0 THEN
+      SET @latestRow            = Row(@versionRows, 1)
+      SET @latestContentVersion = Field(@latestRow, "ContentVersion")
+      SET @latestStatus         = Field(@latestRow, "Status")
+    ENDIF
+
+    /* Active version = highest ContentVersion with Status = 'Active' */
+    SET @activeRows = LookupOrderedRows(
+      @selectedDataExtensionKey,
+      1,
+      "ContentVersion DESC",
+      "IsDeleted",   "0",
+      "CountryCode",  @countryCode,
+      "LanguageCode", @languageCode,
+      "Type",         @variantType,
+      "Version",      @variantVersion,
+      "Status",       "Active"
+    )
+
+    IF RowCount(@activeRows) > 0 THEN
+      SET @activeRow           = Row(@activeRows, 1)
+      SET @activeContentVersion = Field(@activeRow, "ContentVersion")
+    ENDIF
+
+  ENDIF
+]%%
 
 <h1 class="card-title">%%=v(@selectedCategoryName)=%%</h1>
 
@@ -55,42 +186,84 @@ version = first row in this ordered set */ IF @versionRowCount > 0 THEN SET
       <th>Version:</th>
       <td>%%=v(@variantVersion)=%%</td>
     </tr>
+
+    <!-- Active (live) version -->
     <tr>
-      <th>Content Version:</th>
-      <td>%%=IIF(EMPTY(@contentVersion),'–',@contentVersion)=%%</td>
+      <th>Active content version:</th>
+      <td>%%=IIF(EMPTY(@activeContentVersion),'–',@activeContentVersion)=%%</td>
+    </tr>
+
+    <!-- Latest (most recently saved) version -->
+    <tr>
+      <th>Latest content version:</th>
+      <td>%%=IIF(EMPTY(@latestContentVersion),'–',@latestContentVersion)=%%</td>
     </tr>
     <tr>
-      <th>Status:</th>
-      <td>%%=IIF(EMPTY(@status),'–',@status)=%%</td>
+      <th>Latest status:</th>
+      <td>%%=IIF(EMPTY(@latestStatus),'–',@latestStatus)=%%</td>
     </tr>
   </tbody>
 </table>
 
-<h2 style="margin-top: 1.5rem">Version history</h2>
 
 <table class="list">
   <thead>
     <tr>
       <th>Content Version</th>
       <th>Status</th>
+      <th>CreatedDate</th>
       <th>Last Modified Date</th>
       <th class="actions">Action</th>
     </tr>
   </thead>
   <tbody>
-    %%[ IF @versionRowCount > 0 THEN ]%% %%[ FOR @i = 1 TO @versionRowCount DO
-    SET @row = Row(@versionRows, @i) SET @cv = Field(@row, "ContentVersion") SET
-    @cvStatus = Field(@row, "Status") SET @cvLastModified = Field(@row,
-    "ModifiedDate") ]%%
+    %%[ IF @versionRowCount > 0 THEN
+
+        FOR @i = 1 TO @versionRowCount DO
+          SET @row            = Row(@versionRows, @i)
+          SET @cv             = Field(@row, "ContentVersion")
+          SET @cvStatus       = Field(@row, "Status")
+          SET @cvCreatedDate = Field(@row, "ModifiedDate")
+          SET @cvLastModified = Field(@row, "ModifiedDate")
+
+          /* Build URLs for activate / deactivate */
+          SET @baseUrl = Concat(
+                          CloudPagesURL(3638),
+                          '?cat=',     @selectedCategoryId,
+                          '&de=',      @selectedDataExtensionKey,
+                          '&country=', @countryCode,
+                          '&lang=',    @languageCode,
+                          '&type=',    @variantType,
+                          '&version=', @variantVersion
+                        )
+          SET @activateUrl   = Concat(@baseUrl, '&action=activate&cv=',   @cv)
+          SET @deactivateUrl = Concat(@baseUrl, '&action=deactivate&cv=', @cv)
+    ]%%
     <tr>
       <td>%%=v(@cv)=%%</td>
       <td>%%=v(@cvStatus)=%%</td>
+      <td>%%=v(@cvCreatedDate)=%%</td>
       <td>%%=v(@cvLastModified)=%%</td>
       <td class="actions">
-        <!-- Activate / Deactivate buttons will go here -->
+        %%[ IF @cvStatus == "Active" THEN ]%%
+          <a
+            href="%%=v(@deactivateUrl)=%%"
+            class="btn-link"
+            onclick="return confirm('Deactivate this version?');"
+          >
+            Deactivate
+          </a>
+        %%[ ELSE ]%%
+          <a
+            href="%%=v(@activateUrl)=%%"
+            class="btn-link"
+          >
+            Activate
+          </a>
+        %%[ ENDIF ]%%
       </td>
     </tr>
-    %%[ NEXT @i ]%% %%[ ELSE ]%%
+    %%[ NEXT @i ELSE ]%%
     <tr>
       <td colspan="4">No versions found for this variant.</td>
     </tr>
