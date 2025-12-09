@@ -36,10 +36,6 @@
       <th>Version:</th>
       <td>%%=v(@variantVersion)=%%</td>
     </tr>
-    <tr>
-      <th>Currently editing CV:</th>
-      <td>%%=IIF(EMPTY(@contentVersion),'-',@contentVersion)=%%</td>
-    </tr>
 
     <!-- Active (live) version -->
     <tr>
@@ -47,14 +43,25 @@
       <td>%%=IIF(EMPTY(@activeContentVersion),'-',@activeContentVersion)=%%</td>
     </tr>
 
-    <!-- Latest version -->
     <tr>
       <th>Latest content version:</th>
       <td>%%=IIF(EMPTY(@latestContentVersion),'-',@latestContentVersion)=%%</td>
     </tr>
+
     <tr>
       <th>Latest status:</th>
       <td>%%=IIF(EMPTY(@latestStatus),'-',@latestStatus)=%%</td>
     </tr>
+
+    <tr>
+      <th>Currently editing content version:</th>
+      <td>%%=IIF(EMPTY(@contentVersion),'-',@contentVersion)=%%</td>
+    </tr>
+
+    <tr>
+      <th>Currently editing status:</th>
+      <td>%%=IIF(EMPTY(@currentStatus),'-',@currentStatus)=%%</td>
+    </tr>
+
   </tbody>
 </table>

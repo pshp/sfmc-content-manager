@@ -76,7 +76,8 @@
   SET @latestStatus         = ""
   SET @activeContentVersion = ""
   SET @contentVersion       = ""
-  SET @currentRow           = ''
+  SET @currentRow           = ""
+  SET @currentStatus           = ""
 
   /* ==================================================================
      5) HANDLE ACTIONS: ACTIVATE / DEACTIVATE / SAVE (update current CV)
@@ -147,39 +148,183 @@
     /* ------------------------------------------
        5c) SAVE: update fields on the selected CV
        ------------------------------------------ */
-    ELSEIF @action == "save" AND NOT EMPTY(@rowId) THEN
+    ELSEIF @action == "save" THEN
 
-      /* Loop config fields and update values on this CV (by identity) */
-      IF @contentFieldCount > 0 THEN
+      /* 5c-0: Which CV are we saving? Prefer cv from URL/form */
+      SET @saveCv = @targetCv
 
-        FOR @sf = 1 TO @contentFieldCount DO
-          SET @saveFieldRow  = Row(@contentFieldRows, @sf)
-          SET @saveFieldName = Field(@saveFieldRow, "FieldName")
-          SET @saveValue     = RequestParameter(@saveFieldName)
-
-          IF NOT EMPTY(@saveFieldName) THEN
-            SET @r = UpdateData(
-              @selectedDataExtensionKey,
-              1,
-              "_CustomObjectKey", @rowId,
-              @saveFieldName,     @saveValue
-            )
-            SET @rowsUpdated = Add(@rowsUpdated, @r)
-          ENDIF
-        NEXT @sf
-
-        /* One-off ModifiedDate update */
-        UpdateData(
+      IF EMPTY(@saveCv) THEN
+        /* Fallback: use latest CV as base */
+        SET @latestRows = LookupOrderedRows(
           @selectedDataExtensionKey,
           1,
-          "_CustomObjectKey", @rowId,
-          "ModifiedDate",     Now()
+          "ContentVersion DESC",
+          "IsDeleted",   "0",
+          "CountryCode",  @countryCode,
+          "LanguageCode", @languageCode,
+          "Type",         @variantType,
+          "Version",      @variantVersion
         )
+
+        IF RowCount(@latestRows) > 0 THEN
+          SET @latestRow = Row(@latestRows, 1)
+          SET @saveCv    = Field(@latestRow, "ContentVersion")
+        ENDIF
+      ENDIF
+
+      /* 5c-1: Check status of the CV we’re saving */
+      SET @saveStatus = ""
+
+      IF NOT EMPTY(@saveCv) THEN
+
+        SET @saveRows = LookupRows(
+          @selectedDataExtensionKey,
+          "IsDeleted",     "0",
+          "CountryCode",   @countryCode,
+          "LanguageCode",  @languageCode,
+          "Type",          @variantType,
+          "Version",       @variantVersion,
+          "ContentVersion", @saveCv
+        )
+
+        IF RowCount(@saveRows) > 0 THEN
+          SET @saveRow    = Row(@saveRows, 1)
+          SET @saveStatus = Field(@saveRow, "Status")
+        ENDIF
 
       ENDIF
 
-    ENDIF
-  ENDIF
+      /* --------------------------------------------------
+         CASE 1: current version is Draft → update in place
+         -------------------------------------------------- */
+      IF @saveStatus == "Draft" THEN
+
+        /* Update all configured fields on this Draft row */
+        IF @contentFieldCount > 0 THEN
+
+          FOR @sf = 1 TO @contentFieldCount DO
+            SET @saveFieldRow  = Row(@contentFieldRows, @sf)
+            SET @saveFieldName = Field(@saveFieldRow, "FieldName")
+            SET @saveValue     = RequestParameter(@saveFieldName)
+
+            IF NOT EMPTY(@saveFieldName) THEN
+              SET @r = UpdateData(
+                @selectedDataExtensionKey,
+                5,
+                "CountryCode",    @countryCode,
+                "LanguageCode",   @languageCode,
+                "Type",           @variantType,
+                "Version",        @variantVersion,
+                "ContentVersion", @saveCv,
+                @saveFieldName,   @saveValue
+              )
+              SET @rowsUpdated = Add(@rowsUpdated, @r)
+            ENDIF
+          NEXT @sf
+
+        ENDIF
+
+        /* Update ModifiedDate on the same Draft row */
+        UpdateData(
+          @selectedDataExtensionKey,
+          5,
+          "CountryCode",    @countryCode,
+          "LanguageCode",   @languageCode,
+          "Type",           @variantType,
+          "Version",        @variantVersion,
+          "ContentVersion", @saveCv,
+          "ModifiedDate",   Now()
+        )
+
+        /* Keep editing this same CV */
+        SET @targetCv = @saveCv
+
+      /* --------------------------------------------------
+         CASE 2: not Draft (Active/Inactive) → create new CV
+         -------------------------------------------------- */
+      ELSE
+
+        /* 5c-NEW-1: find latest CV number */
+        SET @latestCv   = 0
+        SET @latestRows = LookupOrderedRows(
+          @selectedDataExtensionKey,
+          1,
+          "ContentVersion DESC",
+          "IsDeleted",   "0",
+          "CountryCode",  @countryCode,
+          "LanguageCode", @languageCode,
+          "Type",         @variantType,
+          "Version",      @variantVersion
+        )
+
+        IF RowCount(@latestRows) > 0 THEN
+          SET @latestRow = Row(@latestRows, 1)
+          SET @latestCv  = Field(@latestRow, "ContentVersion")
+        ENDIF
+
+        /* 5c-NEW-2: new CV = latest + 1 */
+        SET @newCv = Add(@latestCv, 1)
+
+        /* 5c-NEW-3: insert skeleton row for new Draft version */
+        SET @insertCount = InsertData(
+          @selectedDataExtensionKey,
+          "CountryCode",    @countryCode,
+          "LanguageCode",   @languageCode,
+          "Type",           @variantType,
+          "Version",        @variantVersion,
+          "ContentVersion", @newCv,
+          "Status",         "Draft",
+          "IsDeleted",      "0",
+          "CreatedDate",    Now(),
+          "ModifiedDate",   Now()
+        )
+
+        /* 5c-NEW-4: populate all configured fields on the new CV */
+        IF @contentFieldCount > 0 THEN
+
+          FOR @sf = 1 TO @contentFieldCount DO
+            SET @saveFieldRow  = Row(@contentFieldRows, @sf)
+            SET @saveFieldName = Field(@saveFieldRow, "FieldName")
+            SET @saveValue     = RequestParameter(@saveFieldName)
+
+            IF NOT EMPTY(@saveFieldName) THEN
+              SET @r = UpdateData(
+                @selectedDataExtensionKey,
+                5,
+                "CountryCode",    @countryCode,
+                "LanguageCode",   @languageCode,
+                "Type",           @variantType,
+                "Version",        @variantVersion,
+                "ContentVersion", @newCv,
+                @saveFieldName,   @saveValue
+              )
+              SET @rowsUpdated = Add(@rowsUpdated, @r)
+            ENDIF
+          NEXT @sf
+
+        ENDIF
+
+        /* 5c-NEW-5: continue editing the new version */
+        SET @targetCv = @newCv
+
+      ENDIF  /* end draft vs new */
+
+      /* 5c-X: Redirect so UI reloads with the saved CV */
+      SET @redirectUrl = Concat(
+        CloudPagesURL(3638),
+        '?cat=',     @selectedCategoryId,
+        '&de=',      @selectedDataExtensionKey,
+        '&country=', @countryCode,
+        '&lang=',    @languageCode,
+        '&type=',    @variantType,
+        '&version=', @variantVersion,
+        '&cv=',      @targetCv
+      )
+
+      Redirect(@redirectUrl)
+
+    ENDIF /* end save */
+  ENDIF   /* end action guard */
 
   /* ==================================================================
      6) AFTER ACTIONS: load versions + decide which CV to edit
@@ -187,10 +332,10 @@
   IF NOT EMPTY(@selectedDataExtensionKey) AND NOT EMPTY(@countryCode) AND
      NOT EMPTY(@languageCode) AND NOT EMPTY(@variantType) AND NOT EMPTY(@variantVersion) THEN
 
-    /* All versions for this variant, newest first */
+    /* 0 = all rows */
     SET @versionRows = LookupOrderedRows(
       @selectedDataExtensionKey,
-      0, /* all rows */
+      0,
       "ContentVersion DESC",
       "IsDeleted",   "0",
       "CountryCode",  @countryCode,
@@ -223,6 +368,7 @@
     IF RowCount(@activeRows) > 0 THEN
       SET @activeRow            = Row(@activeRows, 1)
       SET @activeContentVersion = Field(@activeRow, "ContentVersion")
+
     ENDIF
 
     /* Decide which CV is the one we are currently editing */
@@ -251,6 +397,7 @@
 
       IF RowCount(@currentRows) > 0 THEN
         SET @currentRow = Row(@currentRows, 1)
+        SET @currentStatus = Field(@currentRow, "Status")
       ENDIF
     ENDIF
   ENDIF
