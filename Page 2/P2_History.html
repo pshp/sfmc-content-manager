@@ -18,8 +18,9 @@
           SET @cvStatus       = Field(@row, "Status")
           SET @cvCreatedDate  = Field(@row, "CreatedDate")
           SET @cvLastModified = Field(@row, "ModifiedDate")
+          SET @rowId          = Field(@row, "_CustomObjectKey")
 
-          /* Build base URL: selecting this CV */
+          /* Build base URL: selecting this CV + identity */
           SET @baseUrl = Concat(
                           CloudPagesURL(3638),
                           '?cat=',     @selectedCategoryId,
@@ -28,14 +29,18 @@
                           '&lang=',    @languageCode,
                           '&type=',    @variantType,
                           '&version=', @variantVersion,
-                          '&cv=',      @cv
+                          '&cv=',      @cv,
+                          '&id=',      @rowId
                         )
           SET @activateUrl   = Concat(@baseUrl, '&action=activate')
           SET @deactivateUrl = Concat(@baseUrl, '&action=deactivate')
     ]%%
     <tr>
       <td>
-        %%=v(@cv)=%%
+        <!-- Click CV to select/edit this version -->
+        <a href="%%=v(@baseUrl)=%%" class="btn-link">
+          %%=v(@cv)=%%
+        </a>
       </td>
       <td>%%=v(@cvStatus)=%%</td>
       <td>%%=v(@cvCreatedDate)=%%</td>

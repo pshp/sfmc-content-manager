@@ -1,3 +1,12 @@
+%%[
+  /* Get identity of the current row to use in form action + hidden field */
+  SET @formRowId = ""
+
+  IF NOT EMPTY(@currentRow) THEN
+    SET @formRowId = Field(@currentRow, "_CustomObjectKey")
+  ENDIF
+]%%
+
 <form
   method="post"
   action="%%=Concat(
@@ -8,13 +17,16 @@
             '&lang=',    @languageCode,
             '&type=',    @variantType,
             '&version=', @variantVersion,
-            '&cv=',      @contentVersion
+            '&cv=',      @contentVersion,
+            '&id=',      @formRowId
           )=%%"
 >
   <!-- Trigger flag (used by controller AMPscript) -->
   <input type="hidden" name="action" value="save" />
-  <!-- Pass current CV back on save -->
+
+  <!-- Pass current CV + identity back on save -->
   <input type="hidden" name="cv" value="%%=v(@contentVersion)=%%" />
+  <input type="hidden" name="id" value="%%=v(@formRowId)=%%" />
 
   <table class="list" style="margin-bottom: 1rem">
     <thead>
@@ -93,7 +105,7 @@
       save
     </button>
 
-    <!-- DISCARD: just reload variant without saving -->
+    <!-- DISCARD: reload variant (keep current CV + id so page stays on same row) -->
     <button
       class="btn btn-secondary"
       type="button"
@@ -104,7 +116,9 @@
         '&country=', @countryCode,
         '&lang=',    @languageCode,
         '&type=',    @variantType,
-        '&version=', @variantVersion
+        '&version=', @variantVersion,
+        '&cv=',      @contentVersion,
+        '&id=',      @formRowId
       )=%%'"
     >
       discard changes

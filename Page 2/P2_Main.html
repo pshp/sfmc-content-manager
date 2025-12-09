@@ -1,253 +1,99 @@
+%%[
+  /* ------------------------------------------------------------------
+     Page 2: Edit a single content variant (all ContentVersions)
+     ------------------------------------------------------------------
+     URL / form parameters
+     ------------------------------------------------------------------
+     Context:
+       cat      = CategoryId
+       de       = DataExtensionKey
+       country  = CountryCode
+       lang     = LanguageCode
+       type     = Type
+       version  = Version
 
-  %%[
-    /* ------------------------------------------------------------------
-       Page 2: Edit a single content variant (all ContentVersions)
-       ------------------------------------------------------------------
-       URL / form parameters
-       ------------------------------------------------------------------
-       Context:
-         cat      = CategoryId
-         de       = DataExtensionKey
-         country  = CountryCode
-         lang     = LanguageCode
-         type     = Type
-         version  = Version
+     Version / action:
+       cv       = target ContentVersion (also "current CV")
+       id       = _CustomObjectKey for the selected row (required for actions)
+       action   = 'activate' | 'deactivate' | 'save'
 
-       Version / action:
-         cv       = target ContentVersion (also "current CV")
-         action   = 'activate' | 'deactivate' | 'save'
+     Behaviour:
+       - activate:   make one CV Active, others Inactive for this variant
+       - deactivate: set this CV to Inactive
+       - save:       update fields for the selected CV (by _CustomObjectKey)
+     ------------------------------------------------------------------ */
 
-       Behaviour:
-         - activate:   make one CV Active, others Inactive for this variant
-         - deactivate: set this CV to Inactive
-         - save:       update fields for the selected CV
-       ------------------------------------------------------------------ */
+  /* --------------------------------------------------
+     1) Querystring: variant + DE context
+     -------------------------------------------------- */
+  SET @selectedCategoryId       = RequestParameter("cat")
+  SET @selectedDataExtensionKey = RequestParameter("de")
+  SET @countryCode              = RequestParameter("country")
+  SET @languageCode             = RequestParameter("lang")
+  SET @variantType              = RequestParameter("type")
+  SET @variantVersion           = RequestParameter("version")
 
-    /* --------------------------------------------------
-       1) Querystring: variant + DE context
-       -------------------------------------------------- */
-    SET @selectedCategoryId       = RequestParameter("cat")
-    SET @selectedDataExtensionKey = RequestParameter("de")
-    SET @countryCode              = RequestParameter("country")
-    SET @languageCode             = RequestParameter("lang")
-    SET @variantType              = RequestParameter("type")
-    SET @variantVersion           = RequestParameter("version")
+  /* --------------------------------------------------
+     2) Querystring / form: action + target CV + row id
+     -------------------------------------------------- */
+  SET @action   = RequestParameter("action")  /* 'activate', 'deactivate', 'save' */
+  SET @targetCv = RequestParameter("cv")      /* target ContentVersion ("current cv") */
+  SET @rowId    = RequestParameter("id")      /* _CustomObjectKey (row identity) */
 
-    /* --------------------------------------------------
-       2) Querystring / form: action + target CV
-       -------------------------------------------------- */
-    SET @action   = RequestParameter("action")  /* 'activate', 'deactivate', 'save' */
-    SET @targetCv = RequestParameter("cv")      /* target ContentVersion ("current cv") */
+  /* --------------------------------------------------
+     3) Lookups: category name + field config
+     -------------------------------------------------- */
+  SET @selectedCategoryName = ""
 
-    /* --------------------------------------------------
-       3) Lookups: category name + field config
-       -------------------------------------------------- */
-    SET @selectedCategoryName = ""
-
-    /* Category name (for title) */
-    IF NOT EMPTY(@selectedCategoryId) THEN
-      SET @selectedCategoryName = Lookup(
-        "CM_ContentCategory",
-        "CategoryName",
-        "CategoryId",
-        @selectedCategoryId
-      )
-    ENDIF
-
-    /* Field configuration for this DE (drives form + save) */
-    SET @contentFieldRows = LookupOrderedRows(
-      "CM_ContentFieldConfig",
-      0,
-      "SortOrder ASC",
-      "DataExtensionKey",
-      @selectedDataExtensionKey
+  /* Category name (for title) */
+  IF NOT EMPTY(@selectedCategoryId) THEN
+    SET @selectedCategoryName = Lookup(
+      "CM_ContentCategory",
+      "CategoryName",
+      "CategoryId",
+      @selectedCategoryId
     )
-    SET @contentFieldCount = RowCount(@contentFieldRows)
+  ENDIF
 
-    /* --------------------------------------------------
-       4) Initialise counters / state variables
-       -------------------------------------------------- */
-    SET @rowsUpdated          = 0
+  /* Field configuration for this DE (drives form + save) */
+  SET @contentFieldRows = LookupOrderedRows(
+    "CM_ContentFieldConfig",
+    0,
+    "SortOrder ASC",
+    "DataExtensionKey",
+    @selectedDataExtensionKey
+  )
+  SET @contentFieldCount = RowCount(@contentFieldRows)
 
-    /* Version / CV state that will be filled AFTER actions */
-    SET @versionRowCount      = 0
-    SET @latestContentVersion = ""
-    SET @latestStatus         = ""
-    SET @activeContentVersion = ""
-    SET @contentVersion       = ""
-    SET @currentRow           = ''
+  /* --------------------------------------------------
+     4) Initialise counters / state variables
+     -------------------------------------------------- */
+  SET @rowsUpdated          = 0
 
-    /* ==================================================================
-       5) HANDLE ACTIONS: ACTIVATE / DEACTIVATE / SAVE (update current CV)
-       ================================================================== */
-    IF NOT EMPTY(@action) AND
-       NOT EMPTY(@selectedDataExtensionKey) AND
-       NOT EMPTY(@countryCode) AND NOT EMPTY(@languageCode) AND
-       NOT EMPTY(@variantType) AND NOT EMPTY(@variantVersion) THEN
+  /* Version / CV state that will be filled AFTER actions */
+  SET @versionRowCount      = 0
+  SET @latestContentVersion = ""
+  SET @latestStatus         = ""
+  SET @activeContentVersion = ""
+  SET @contentVersion       = ""
+  SET @currentRow           = ''
 
-      /* ------------------------------------------
-         5a) ACTIVATE: make one CV Active
-         ------------------------------------------ */
-      IF @action == "activate" AND NOT EMPTY(@targetCv) THEN
+  /* ==================================================================
+     5) HANDLE ACTIONS: ACTIVATE / DEACTIVATE / SAVE (update current CV)
+     ================================================================== */
+  IF NOT EMPTY(@action) AND
+     NOT EMPTY(@selectedDataExtensionKey) AND
+     NOT EMPTY(@countryCode) AND NOT EMPTY(@languageCode) AND
+     NOT EMPTY(@variantType) AND NOT EMPTY(@variantVersion) THEN
 
-        /* Deactivate any currently Active versions for this variant */
-        SET @activeRows = LookupRows(
-          @selectedDataExtensionKey,
-          "IsDeleted",   "0",
-          "CountryCode",  @countryCode,
-          "LanguageCode", @languageCode,
-          "Type",         @variantType,
-          "Version",      @variantVersion,
-          "Status",       "Active"
-        )
-        SET @activeCount = RowCount(@activeRows)
+    /* ------------------------------------------
+       5a) ACTIVATE: make one CV Active
+       ------------------------------------------ */
+    IF @action == "activate" AND NOT EMPTY(@targetCv) AND NOT EMPTY(@rowId) THEN
 
-        IF @activeCount > 0 THEN
-          FOR @i = 1 TO @activeCount DO
-            SET @row = Row(@activeRows, @i)
-            SET @cv  = Field(@row, "ContentVersion")
-
-            UpdateData(
-              @selectedDataExtensionKey,
-              5,
-              "CountryCode",     @countryCode,
-              "LanguageCode",    @languageCode,
-              "Type",            @variantType,
-              "Version",         @variantVersion,
-              "ContentVersion",  @cv,
-              "Status",          "Inactive",
-              "ModifiedDate",    Now()
-            )
-          NEXT @i
-        ENDIF
-
-        /* Now set target version to Active */
-        UpdateData(
-          @selectedDataExtensionKey,
-          5,
-          "CountryCode",     @countryCode,
-          "LanguageCode",    @languageCode,
-          "Type",            @variantType,
-          "Version",         @variantVersion,
-          "ContentVersion",  @targetCv,
-          "Status",          "Active",
-          "ModifiedDate",    Now()
-        )
-
-      /* ------------------------------------------
-         5b) DEACTIVATE: set specific CV to Inactive
-         ------------------------------------------ */
-      ELSEIF @action == "deactivate" AND NOT EMPTY(@targetCv) THEN
-
-        UpdateData(
-          @selectedDataExtensionKey,
-          5,
-          "CountryCode",     @countryCode,
-          "LanguageCode",    @languageCode,
-          "Type",            @variantType,
-          "Version",         @variantVersion,
-          "ContentVersion",  @targetCv,
-          "Status",          "Inactive",
-          "ModifiedDate",    Now()
-        )
-
-      /* ------------------------------------------
-         5c) SAVE: update fields on the selected CV
-         ------------------------------------------ */
-      ELSEIF @action == "save" THEN
-
-        /* Which CV are we editing? Comes from hidden input "cv" / querystring */
-        SET @saveCv = @targetCv
-
-        /* Fallback: if cv missing, use latest for this variant */
-        IF EMPTY(@saveCv) THEN
-          SET @latestForSaveRows = LookupOrderedRows(
-            @selectedDataExtensionKey,
-            1,
-            "ContentVersion DESC",
-            "IsDeleted",   "0",
-            "CountryCode",  @countryCode,
-            "LanguageCode", @languageCode,
-            "Type",         @variantType,
-            "Version",      @variantVersion
-          )
-
-          IF RowCount(@latestForSaveRows) > 0 THEN
-            SET @latestForSaveRow = Row(@latestForSaveRows, 1)
-            SET @saveCv           = Field(@latestForSaveRow, "ContentVersion")
-          ENDIF
-        ENDIF
-
-        /* Loop config fields and update values on this CV */
-        IF @contentFieldCount > 0 AND NOT EMPTY(@saveCv) THEN
-
-          FOR @sf = 1 TO @contentFieldCount DO
-            SET @saveFieldRow  = Row(@contentFieldRows, @sf)
-            SET @saveFieldName = Field(@saveFieldRow, "FieldName")
-            SET @saveValue     = RequestParameter(@saveFieldName)
-
-            IF NOT EMPTY(@saveFieldName) THEN
-              SET @r = UpdateData(
-                @selectedDataExtensionKey,
-                5,
-                "CountryCode",     @countryCode,
-                "LanguageCode",    @languageCode,
-                "Type",            @variantType,
-                "Version",         @variantVersion,
-                "ContentVersion",  @saveCv,
-                @saveFieldName,    @saveValue
-              )
-              SET @rowsUpdated = Add(@rowsUpdated, @r)
-            ENDIF
-          NEXT @sf
-
-          /* One-off ModifiedDate update */
-          UpdateData(
-            @selectedDataExtensionKey,
-            5,
-            "CountryCode",     @countryCode,
-            "LanguageCode",    @languageCode,
-            "Type",            @variantType,
-            "Version",         @variantVersion,
-            "ContentVersion",  @saveCv,
-            "ModifiedDate",    Now()
-          )
-        ENDIF
-
-      ENDIF
-    ENDIF
-
-    /* ==================================================================
-       6) AFTER ACTIONS: load versions + decide which CV to edit
-       ================================================================== */
-    IF NOT EMPTY(@selectedDataExtensionKey) AND NOT EMPTY(@countryCode) AND
-       NOT EMPTY(@languageCode) AND NOT EMPTY(@variantType) AND NOT EMPTY(@variantVersion) THEN
-
-      /* All versions for this variant, newest first */
-      SET @versionRows = LookupOrderedRows(
+      /* Deactivate any currently Active versions for this variant */
+      SET @activeRows = LookupRows(
         @selectedDataExtensionKey,
-        0, /* all rows */
-        "ContentVersion DESC",
-        "IsDeleted",   "0",
-        "CountryCode",  @countryCode,
-        "LanguageCode", @languageCode,
-        "Type",         @variantType,
-        "Version",      @variantVersion
-      )
-      SET @versionRowCount = RowCount(@versionRows)
-
-      /* Latest version = first row in DESC list */
-      IF @versionRowCount > 0 THEN
-        SET @latestRow            = Row(@versionRows, 1)
-        SET @latestContentVersion = Field(@latestRow, "ContentVersion")
-        SET @latestStatus         = Field(@latestRow, "Status")
-      ENDIF
-
-      /* Active CV (if any) */
-      SET @activeRows = LookupOrderedRows(
-        @selectedDataExtensionKey,
-        1,
-        "ContentVersion DESC",
         "IsDeleted",   "0",
         "CountryCode",  @countryCode,
         "LanguageCode", @languageCode,
@@ -255,42 +101,160 @@
         "Version",      @variantVersion,
         "Status",       "Active"
       )
+      SET @activeCount = RowCount(@activeRows)
 
-      IF RowCount(@activeRows) > 0 THEN
-        SET @activeRow            = Row(@activeRows, 1)
-        SET @activeContentVersion = Field(@activeRow, "ContentVersion")
+      IF @activeCount > 0 THEN
+        FOR @i = 1 TO @activeCount DO
+          SET @row = Row(@activeRows, @i)
+          SET @cv  = Field(@row, "ContentVersion")
+
+          UpdateData(
+            @selectedDataExtensionKey,
+            5,
+            "CountryCode",     @countryCode,
+            "LanguageCode",    @languageCode,
+            "Type",            @variantType,
+            "Version",         @variantVersion,
+            "ContentVersion",  @cv,
+            "Status",          "Inactive",
+            "ModifiedDate",    Now()
+          )
+        NEXT @i
       ENDIF
 
-      /* Decide which CV is the one we are currently editing */
-      IF NOT EMPTY(@targetCv) THEN
-        /* 1) Explicit cv in URL / form */
-        SET @contentVersion = @targetCv
-      ELSEIF NOT EMPTY(@activeContentVersion) THEN
-        /* 2) Prefer active version */
-        SET @contentVersion = @activeContentVersion
-      ELSE
-        /* 3) Fallback: latest */
-        SET @contentVersion = @latestContentVersion
-      ENDIF
+      /* Now set target version to Active (by identity) */
+      UpdateData(
+        @selectedDataExtensionKey,
+        1,
+        "_CustomObjectKey", @rowId,
+        "Status",           "Active",
+        "ModifiedDate",     Now()
+      )
 
-      /* Load the row for the current CV we are editing */
-      IF NOT EMPTY(@contentVersion) THEN
-        SET @currentRows = LookupRows(
+    /* ------------------------------------------
+       5b) DEACTIVATE: set specific CV to Inactive
+       ------------------------------------------ */
+    ELSEIF @action == "deactivate" AND NOT EMPTY(@rowId) THEN
+
+      UpdateData(
+        @selectedDataExtensionKey,
+        1,
+        "_CustomObjectKey", @rowId,
+        "Status",           "Inactive",
+        "ModifiedDate",     Now()
+      )
+
+    /* ------------------------------------------
+       5c) SAVE: update fields on the selected CV
+       ------------------------------------------ */
+    ELSEIF @action == "save" AND NOT EMPTY(@rowId) THEN
+
+      /* Loop config fields and update values on this CV (by identity) */
+      IF @contentFieldCount > 0 THEN
+
+        FOR @sf = 1 TO @contentFieldCount DO
+          SET @saveFieldRow  = Row(@contentFieldRows, @sf)
+          SET @saveFieldName = Field(@saveFieldRow, "FieldName")
+          SET @saveValue     = RequestParameter(@saveFieldName)
+
+          IF NOT EMPTY(@saveFieldName) THEN
+            SET @r = UpdateData(
+              @selectedDataExtensionKey,
+              1,
+              "_CustomObjectKey", @rowId,
+              @saveFieldName,     @saveValue
+            )
+            SET @rowsUpdated = Add(@rowsUpdated, @r)
+          ENDIF
+        NEXT @sf
+
+        /* One-off ModifiedDate update */
+        UpdateData(
           @selectedDataExtensionKey,
-          "IsDeleted",     "0",
-          "CountryCode",   @countryCode,
-          "LanguageCode",  @languageCode,
-          "Type",          @variantType,
-          "Version",       @variantVersion,
-          "ContentVersion", @contentVersion
+          1,
+          "_CustomObjectKey", @rowId,
+          "ModifiedDate",     Now()
         )
 
-        IF RowCount(@currentRows) > 0 THEN
-          SET @currentRow = Row(@currentRows, 1)
-        ENDIF
+      ENDIF
+
+    ENDIF
+  ENDIF
+
+  /* ==================================================================
+     6) AFTER ACTIONS: load versions + decide which CV to edit
+     ================================================================== */
+  IF NOT EMPTY(@selectedDataExtensionKey) AND NOT EMPTY(@countryCode) AND
+     NOT EMPTY(@languageCode) AND NOT EMPTY(@variantType) AND NOT EMPTY(@variantVersion) THEN
+
+    /* All versions for this variant, newest first */
+    SET @versionRows = LookupOrderedRows(
+      @selectedDataExtensionKey,
+      0, /* all rows */
+      "ContentVersion DESC",
+      "IsDeleted",   "0",
+      "CountryCode",  @countryCode,
+      "LanguageCode", @languageCode,
+      "Type",         @variantType,
+      "Version",      @variantVersion
+    )
+    SET @versionRowCount = RowCount(@versionRows)
+
+    /* Latest version = first row in DESC list */
+    IF @versionRowCount > 0 THEN
+      SET @latestRow            = Row(@versionRows, 1)
+      SET @latestContentVersion = Field(@latestRow, "ContentVersion")
+      SET @latestStatus         = Field(@latestRow, "Status")
+    ENDIF
+
+    /* Active CV (if any) */
+    SET @activeRows = LookupOrderedRows(
+      @selectedDataExtensionKey,
+      1,
+      "ContentVersion DESC",
+      "IsDeleted",   "0",
+      "CountryCode",  @countryCode,
+      "LanguageCode", @languageCode,
+      "Type",         @variantType,
+      "Version",      @variantVersion,
+      "Status",       "Active"
+    )
+
+    IF RowCount(@activeRows) > 0 THEN
+      SET @activeRow            = Row(@activeRows, 1)
+      SET @activeContentVersion = Field(@activeRow, "ContentVersion")
+    ENDIF
+
+    /* Decide which CV is the one we are currently editing */
+    IF NOT EMPTY(@targetCv) THEN
+      /* 1) Explicit cv in URL / form */
+      SET @contentVersion = @targetCv
+    ELSEIF NOT EMPTY(@activeContentVersion) THEN
+      /* 2) Prefer active version */
+      SET @contentVersion = @activeContentVersion
+    ELSE
+      /* 3) Fallback: latest */
+      SET @contentVersion = @latestContentVersion
+    ENDIF
+
+    /* Load the row for the current CV we are editing (still by variant keys) */
+    IF NOT EMPTY(@contentVersion) THEN
+      SET @currentRows = LookupRows(
+        @selectedDataExtensionKey,
+        "IsDeleted",     "0",
+        "CountryCode",   @countryCode,
+        "LanguageCode",  @languageCode,
+        "Type",          @variantType,
+        "Version",       @variantVersion,
+        "ContentVersion", @contentVersion
+      )
+
+      IF RowCount(@currentRows) > 0 THEN
+        SET @currentRow = Row(@currentRows, 1)
       ENDIF
     ENDIF
-  ]%%
+  ENDIF
+]%%
 
 %%=ContentBlockByKey("DMC_P2_VariantEdit_Header")=%%
 %%=ContentBlockByKey("DMC_P2_VariantEdit_Form")=%%
