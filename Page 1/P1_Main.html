@@ -1,46 +1,27 @@
 %%[
   /* --------------------------------------------------
      Page 1: Variant overview for a content DE
-     --------------------------------------------------
-     - Input:
-       * cat      = CategoryId
-       * de       = DataExtensionKey
-       * delete   = 1 to soft-delete a variant
-       * country  = CountryCode of variant to delete
-       * lang     = LanguageCode of variant to delete
-       * type     = Type of variant to delete
-       * version  = Version of variant to delete
      -------------------------------------------------- */
 
-  /* ---------------------------------
-     1) Querystring: selection context
-     --------------------------------- */
+  /* 1) Querystring: selection context */
   SET @selectedCategoryId       = RequestParameter("cat")
   SET @selectedDataExtensionKey = RequestParameter("de")
 
-  /* ---------------------------------
-     2) Querystring: soft-delete flags
-     --------------------------------- */
+  /* 2) Querystring: soft-delete flags */
   SET @deleteFlag = RequestParameter("delete")
   SET @delCountry = RequestParameter("country")
   SET @delLang    = RequestParameter("lang")
   SET @delType    = RequestParameter("type")
   SET @delVersion = RequestParameter("version")
 
-  /* ---------------------------------
-     3) Output / state defaults
-     --------------------------------- */
+  /* 3) Output / state defaults */
   SET @selectedCategoryName = ""
   SET @contentRowCount      = 0
   SET @variantRowCount      = 0
 
-  /* ---------------------------------
-     4) Soft delete selected variant
-        (mark IsDeleted=1, keep row)
-     --------------------------------- */
+  /* 4) Soft delete selected variant (mark IsDeleted=1, keep row) */
   IF NOT EMPTY(@selectedDataExtensionKey) AND @deleteFlag == "1" THEN
 
-    /* 4 keys: CountryCode + LanguageCode + Type + Version */
     UpdateData(
       @selectedDataExtensionKey,
       4,
@@ -53,9 +34,7 @@
 
   ENDIF
 
-  /* ---------------------------------
-     5) Category name for page titles
-     --------------------------------- */
+  /* 5) Category name for page titles */
   IF NOT EMPTY(@selectedCategoryId) THEN
     SET @selectedCategoryName = Lookup(
       "CM_ContentCategory",
@@ -65,10 +44,7 @@
     )
   ENDIF
 
-  /* ---------------------------------
-     6) Content DE list for category
-        (shown when no DE selected yet)
-     --------------------------------- */
+  /* 6) Content DE list for category (no DE selected yet) */
   IF NOT EMPTY(@selectedCategoryId) AND EMPTY(@selectedDataExtensionKey) THEN
 
     SET @contentRows = LookupOrderedRows(
@@ -83,18 +59,15 @@
 
   ENDIF
 
-  /* ---------------------------------
-     7) Variant list for selected DE
-        (non-deleted)
-     --------------------------------- */
+  /* 7) Variant list for selected DE (non-deleted; ContentVersion=1 as anchor) */
   IF NOT EMPTY(@selectedDataExtensionKey) THEN
 
     SET @variantRows = LookupOrderedRows(
       @selectedDataExtensionKey,
       0,
       "CreatedDate ASC",
-      "IsDeleted", "0",
-      "ContentVersion",  "1"
+      "IsDeleted",      "0",
+      "ContentVersion", "1"
     )
 
     SET @variantRowCount = RowCount(@variantRows)
@@ -102,153 +75,39 @@
   ENDIF
 ]%%
 
-
 %%[ IF NOT EMPTY(@selectedDataExtensionKey) THEN ]%%
 
-<!-- after selecting a content (variants list) -->
-<h1 class="card-title">
-  %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
-    %%=v(@selectedCategoryName)=%% - %%=v(@selectedDataExtensionKey)=%%
-  %%[ ELSE ]%%
-    %%=v(@selectedDataExtensionKey)=%%
-  %%[ ENDIF ]%%
-</h1>
-
-<div style="text-align: right; margin-bottom: 0.5rem;">
-  <a
-    href="%%=IIF(EMPTY(@selectedCategoryId),'?',Concat('?cat=',@selectedCategoryId))=%%"
-    class="btn-link"
-  >
-    ↩ back
-  </a>
-</div>
-
-<table class="list" style="margin-bottom: 1rem;">
-  <tbody>
-    <tr>
-      <th>Data Extension:</th>
-      <td>%%=v(@selectedDataExtensionKey)=%%</td>
-    </tr>
-  </tbody>
-</table>
-
-<!-- main variants grid -->
-<table class="list">
-  <thead>
-    <tr>
-      <th>Country</th>
-      <th>Language</th>
-      <th>Type</th>
-      <th>Version</th>
-      <th class="actions">Action</th>
-    </tr>
-  </thead>
-  <tbody>
-    %%[
-      IF @variantRowCount > 0 THEN
-        FOR @variantIndex = 1 TO @variantRowCount DO
-
-          SET @variantRow            = Row(@variantRows, @variantIndex)
-          SET @countryCode           = Field(@variantRow, "CountryCode")
-          SET @languageCode          = Field(@variantRow, "LanguageCode")
-          SET @variantType           = Field(@variantRow, "Type")
-          SET @variantVersion        = Field(@variantRow, "Version")
-    ]%%
-    <tr>
-      <td>%%=v(@countryCode)=%%</td>
-      <td>%%=v(@languageCode)=%%</td>
-      <td>%%=v(@variantType)=%%</td>
-      <td>%%=v(@variantVersion)=%%</td>
-      <td class="actions">
-        <!-- link to page 2 - view for specific content variant -->
-        <a
-          class="btn-link"
-          href="%%=Concat(
-                CloudPagesURL(3638),
-                '?cat=',     @selectedCategoryId,
-                '&de=',      @selectedDataExtensionKey,
-                '&country=', @countryCode,
-                '&lang=',    @languageCode,
-                '&type=',    @variantType,
-                '&version=', @variantVersion
-          )=%%"
-        >
-          edit</a>
-        <a class="btn-link" href="#">view</a>
-
-        <!-- soft delete with confirm -->
-        <a
-          class="btn-link"
-          href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@selectedDataExtensionKey)=%%&delete=1&country=%%=v(@countryCode)=%%&lang=%%=v(@languageCode)=%%&type=%%=v(@variantType)=%%&version=%%=v(@variantVersion)=%%"
-          onclick="return confirm('Do you really want to delete this variant?');"
-        >
-          delete
-        </a>
-      </td>
-    </tr>
-    %%[ NEXT @variantIndex ELSE ]%%
-    <tr>
-      <td colspan="7">No variants found.</td>
-    </tr>
+  <!-- Header stays inline on Main -->
+  <h1 class="card-title">
+    %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
+      %%=v(@selectedCategoryName)=%% - %%=v(@selectedDataExtensionKey)=%%
+    %%[ ELSE ]%%
+      %%=v(@selectedDataExtensionKey)=%%
     %%[ ENDIF ]%%
-  </tbody>
-</table>
+  </h1>
 
-%%[ ELSE ]%%
+  <div style="text-align: right; margin-bottom: 0.5rem;">
+    <a
+      href="%%=IIF(EMPTY(@selectedCategoryId),'?',Concat('?cat=',@selectedCategoryId))=%%"
+      class="btn-link"
+    >
+      ↩ back
+    </a>
+  </div>
 
-<!-- initial view / content DE list for category -->
-<h1 class="card-title">
-  %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
-    %%=v(@selectedCategoryName)=%%
-  %%[ ELSE ]%%
-    Select a category
-  %%[ ENDIF ]%%
-</h1>
-
-%%[ IF NOT EMPTY(@selectedCategoryId) THEN ]%%
-  <!-- Only show the table once a category is chosen -->
-  <table class="list">
-    <thead>
-      <tr>
-        <th>Data Extension</th>
-        <th class="actions">Action</th>
-      </tr>
-    </thead>
+  <table class="list" style="margin-bottom: 1rem;">
     <tbody>
-      %%[
-        IF @contentRowCount > 0 THEN
-          FOR @contentIndex = 1 TO @contentRowCount DO
-
-            SET @contentRow       = Row(@contentRows, @contentIndex)
-            SET @dataExtensionKey = Field(@contentRow, "DataExtensionKey")
-      ]%%
       <tr>
-        <td>
-          <a href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@dataExtensionKey)=%%">
-            %%=v(@dataExtensionKey)=%%
-          </a>
-        </td>
-        <td class="actions">
-          <a
-            href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@dataExtensionKey)=%%"
-            class="btn-link"
-          >
-            edit
-          </a>
-        </td>
+        <th>Data Extension:</th>
+        <td>%%=v(@selectedDataExtensionKey)=%%</td>
       </tr>
-      %%[ NEXT @contentIndex ELSE ]%%
-      <tr>
-        <td colspan="2">
-          No content data extensions found for this category.
-        </td>
-      </tr>
-      %%[ ENDIF ]%%
     </tbody>
   </table>
+
+  %%=ContentBlockByKey("DMC_P1_ContentList_Versions")=%%
+
 %%[ ELSE ]%%
-  <!-- no category yet -->
-  <p>Please select a category from the left to see its content data extensions.</p>
-%%[ ENDIF ]%%
+
+  %%=ContentBlockByKey("DMC_P1_ContentList_DataExtensions")=%%
 
 %%[ ENDIF ]%%

@@ -1,0 +1,60 @@
+<table class="list">
+  <thead>
+    <tr>
+      <th>Country</th>
+      <th>Language</th>
+      <th>Type</th>
+      <th>Version</th>
+      <th class="actions">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    %%[
+      IF @variantRowCount > 0 THEN
+        FOR @variantIndex = 1 TO @variantRowCount DO
+
+          SET @variantRow     = Row(@variantRows, @variantIndex)
+          SET @countryCode    = Field(@variantRow, "CountryCode")
+          SET @languageCode   = Field(@variantRow, "LanguageCode")
+          SET @variantType    = Field(@variantRow, "Type")
+          SET @variantVersion = Field(@variantRow, "Version")
+    ]%%
+    <tr>
+      <td>%%=v(@countryCode)=%%</td>
+      <td>%%=v(@languageCode)=%%</td>
+      <td>%%=v(@variantType)=%%</td>
+      <td>%%=v(@variantVersion)=%%</td>
+      <td class="actions">
+        <!-- link to page 2 - edit specific content variant -->
+        <a
+          class="btn-link"
+          href="%%=Concat(
+                CloudPagesURL(3638),
+                '?cat=',     @selectedCategoryId,
+                '&de=',      @selectedDataExtensionKey,
+                '&country=', @countryCode,
+                '&lang=',    @languageCode,
+                '&type=',    @variantType,
+                '&version=', @variantVersion
+          )=%%"
+        >
+          edit</a>
+        <a class="btn-link" href="#">view</a>
+
+        <!-- soft delete with confirm -->
+        <a
+          class="btn-link"
+          href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@selectedDataExtensionKey)=%%&delete=1&country=%%=v(@countryCode)=%%&lang=%%=v(@languageCode)=%%&type=%%=v(@variantType)=%%&version=%%=v(@variantVersion)=%%"
+          onclick="return confirm('Do you really want to delete this variant?');"
+        >
+          delete
+        </a>
+      </td>
+    </tr>
+    %%[ NEXT @variantIndex ELSE ]%%
+    <tr>
+      <td colspan="7">No variants found.</td>
+    </tr>
+    %%[ ENDIF ]%%
+  </tbody>
+</table>

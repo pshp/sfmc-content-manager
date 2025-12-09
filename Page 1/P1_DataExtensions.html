@@ -1,0 +1,53 @@
+<h1 class="card-title">
+  %%[ IF NOT EMPTY(@selectedCategoryName) THEN ]%%
+    %%=v(@selectedCategoryName)=%%
+  %%[ ELSE ]%%
+    Select a category
+  %%[ ENDIF ]%%
+</h1>
+
+%%[ IF NOT EMPTY(@selectedCategoryId) THEN ]%%
+  <!-- Only show the table once a category is chosen -->
+  <table class="list">
+    <thead>
+      <tr>
+        <th>Data Extension</th>
+        <th class="actions">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      %%[
+        IF @contentRowCount > 0 THEN
+          FOR @contentIndex = 1 TO @contentRowCount DO
+
+            SET @contentRow       = Row(@contentRows, @contentIndex)
+            SET @dataExtensionKey = Field(@contentRow, "DataExtensionKey")
+      ]%%
+      <tr>
+        <td>
+          <a href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@dataExtensionKey)=%%">
+            %%=v(@dataExtensionKey)=%%
+          </a>
+        </td>
+        <td class="actions">
+          <a
+            href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@dataExtensionKey)=%%"
+            class="btn-link"
+          >
+            edit
+          </a>
+        </td>
+      </tr>
+      %%[ NEXT @contentIndex ELSE ]%%
+      <tr>
+        <td colspan="2">
+          No content data extensions found for this category.
+        </td>
+      </tr>
+      %%[ ENDIF ]%%
+    </tbody>
+  </table>
+%%[ ELSE ]%%
+  <!-- no category yet -->
+  <p>Please select a category from the left to see its content data extensions.</p>
+%%[ ENDIF ]%%
