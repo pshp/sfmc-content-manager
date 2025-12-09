@@ -1,0 +1,60 @@
+<h1 class="card-title">%%=v(@selectedCategoryName)=%%</h1>
+
+<div style="text-align: right; margin-bottom: 0.5rem">
+  <!-- Page 1: variant overview -->
+  <a
+    class="btn-link"
+    href="%%=Concat(
+            CloudPagesURL(3637),
+            '?cat=', @selectedCategoryId,
+            '&de=',  @selectedDataExtensionKey
+          )=%%"
+  >
+    ↩ back
+  </a>
+</div>
+
+<table class="list" style="margin-bottom: 1rem">
+  <tbody>
+    <tr>
+      <th>Data Extension:</th>
+      <td>%%=v(@selectedDataExtensionKey)=%%</td>
+    </tr>
+    <tr>
+      <th>Country:</th>
+      <td>%%=v(@countryCode)=%%</td>
+    </tr>
+    <tr>
+      <th>Language:</th>
+      <td>%%=v(@languageCode)=%%</td>
+    </tr>
+    <tr>
+      <th>Type:</th>
+      <td>%%=v(@variantType)=%%</td>
+    </tr>
+    <tr>
+      <th>Version:</th>
+      <td>%%=v(@variantVersion)=%%</td>
+    </tr>
+    <tr>
+      <th>Currently editing CV:</th>
+      <td>%%=IIF(EMPTY(@contentVersion),'-',@contentVersion)=%%</td>
+    </tr>
+
+    <!-- Active (live) version -->
+    <tr>
+      <th>Active content version:</th>
+      <td>%%=IIF(EMPTY(@activeContentVersion),'-',@activeContentVersion)=%%</td>
+    </tr>
+
+    <!-- Latest version -->
+    <tr>
+      <th>Latest content version:</th>
+      <td>%%=IIF(EMPTY(@latestContentVersion),'-',@latestContentVersion)=%%</td>
+    </tr>
+    <tr>
+      <th>Latest status:</th>
+      <td>%%=IIF(EMPTY(@latestStatus),'-',@latestStatus)=%%</td>
+    </tr>
+  </tbody>
+</table>

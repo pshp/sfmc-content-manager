@@ -1,0 +1,113 @@
+<form
+  method="post"
+  action="%%=Concat(
+            CloudPagesURL(3638),
+            '?cat=',     @selectedCategoryId,
+            '&de=',      @selectedDataExtensionKey,
+            '&country=', @countryCode,
+            '&lang=',    @languageCode,
+            '&type=',    @variantType,
+            '&version=', @variantVersion,
+            '&cv=',      @contentVersion
+          )=%%"
+>
+  <!-- Trigger flag (used by controller AMPscript) -->
+  <input type="hidden" name="action" value="save" />
+  <!-- Pass current CV back on save -->
+  <input type="hidden" name="cv" value="%%=v(@contentVersion)=%%" />
+
+  <table class="list" style="margin-bottom: 1rem">
+    <thead>
+      <tr>
+        <th>Feld (Field)</th> <!-- DE + EN -->
+        <th>Content</th>
+      </tr>
+    </thead>
+    <tbody>
+      %%[
+        /* Need: fields configured, versions loaded, and a current row */
+        IF @contentFieldCount > 0 AND @versionRowCount > 0 AND NOT EMPTY(@currentRow) THEN
+
+          FOR @k = 1 TO @contentFieldCount DO
+            SET @contentFieldRow  = Row(@contentFieldRows, @k)
+            SET @contentFieldName = Field(@contentFieldRow, "FieldName")
+            SET @fieldLength      = Field(@contentFieldRow, "FieldLength")
+
+            /* Default length */
+            IF EMPTY(@fieldLength) THEN
+              SET @fieldLength = 255
+            ENDIF
+
+            /* Decide control type + height from FieldLength */
+            SET @inputType = "text"
+            SET @rows      = 1
+
+            IF @fieldLength > 255 THEN
+              SET @inputType = "textarea"
+              IF @fieldLength > 2000 THEN
+                SET @rows = 6
+              ELSE
+                SET @rows = 4
+              ENDIF
+            ENDIF
+
+            /* Current value from the CV we are editing */
+            SET @value = Field(@currentRow, @contentFieldName)
+      ]%%
+      <tr>
+        <td>%%=v(@contentFieldName)=%%</td>
+        <td>
+          %%[ IF @inputType == "textarea" THEN ]%%
+            <textarea
+              name="%%=v(@contentFieldName)=%%"
+              rows="%%=v(@rows)=%%"
+              style="width: 100%;"
+            >%%=v(@value)=%%</textarea>
+          %%[ ELSE ]%%
+            <input
+              type="text"
+              name="%%=v(@contentFieldName)=%%"
+              value="%%=v(@value)=%%"
+              style="width: 100%;"
+            />
+          %%[ ENDIF ]%%
+        </td>
+      </tr>
+      %%[
+          NEXT @k
+
+        ELSE
+      ]%%
+      <tr>
+        <td colspan="2">
+          No fields configured or no versions found.
+        </td>
+      </tr>
+      %%[ ENDIF ]%%
+    </tbody>
+  </table>
+
+  <div style="text-align:center; margin-bottom:1rem;">
+    <!-- SAVE: submit the form (posts fields + action=save) -->
+    <button class="btn btn-secondary" type="submit">
+      save
+    </button>
+
+    <!-- DISCARD: just reload variant without saving -->
+    <button
+      class="btn btn-secondary"
+      type="button"
+      onclick="window.location.href='%%=Concat(
+        CloudPagesURL(3638),
+        '?cat=',     @selectedCategoryId,
+        '&de=',      @selectedDataExtensionKey,
+        '&country=', @countryCode,
+        '&lang=',    @languageCode,
+        '&type=',    @variantType,
+        '&version=', @variantVersion
+      )=%%'"
+    >
+      discard changes
+    </button>
+  </div>
+</form>

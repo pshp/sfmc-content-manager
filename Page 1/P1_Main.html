@@ -1,16 +1,43 @@
 %%[
-  /* querystring params */
+  /* --------------------------------------------------
+     Page 1: Variant overview for a content DE
+     --------------------------------------------------
+     - Input:
+       * cat      = CategoryId
+       * de       = DataExtensionKey
+       * delete   = 1 to soft-delete a variant
+       * country  = CountryCode of variant to delete
+       * lang     = LanguageCode of variant to delete
+       * type     = Type of variant to delete
+       * version  = Version of variant to delete
+     -------------------------------------------------- */
+
+  /* ---------------------------------
+     1) Querystring: selection context
+     --------------------------------- */
   SET @selectedCategoryId       = RequestParameter("cat")
   SET @selectedDataExtensionKey = RequestParameter("de")
 
-  /* soft-delete flags for variants */
+  /* ---------------------------------
+     2) Querystring: soft-delete flags
+     --------------------------------- */
   SET @deleteFlag = RequestParameter("delete")
   SET @delCountry = RequestParameter("country")
   SET @delLang    = RequestParameter("lang")
   SET @delType    = RequestParameter("type")
   SET @delVersion = RequestParameter("version")
 
-  /* If delete=1 and we know which DE + row, mark rows as deleted */
+  /* ---------------------------------
+     3) Output / state defaults
+     --------------------------------- */
+  SET @selectedCategoryName = ""
+  SET @contentRowCount      = 0
+  SET @variantRowCount      = 0
+
+  /* ---------------------------------
+     4) Soft delete selected variant
+        (mark IsDeleted=1, keep row)
+     --------------------------------- */
   IF NOT EMPTY(@selectedDataExtensionKey) AND @deleteFlag == "1" THEN
 
     /* 4 keys: CountryCode + LanguageCode + Type + Version */
@@ -23,9 +50,12 @@
       "Version",      @delVersion,
       "IsDeleted",    "1"
     )
+
   ENDIF
 
-  /* Category name for titles */
+  /* ---------------------------------
+     5) Category name for page titles
+     --------------------------------- */
   IF NOT EMPTY(@selectedCategoryId) THEN
     SET @selectedCategoryName = Lookup(
       "CM_ContentCategory",
@@ -35,8 +65,12 @@
     )
   ENDIF
 
-  /* Content DE list for a category (when no DE selected yet) */
+  /* ---------------------------------
+     6) Content DE list for category
+        (shown when no DE selected yet)
+     --------------------------------- */
   IF NOT EMPTY(@selectedCategoryId) AND EMPTY(@selectedDataExtensionKey) THEN
+
     SET @contentRows = LookupOrderedRows(
       "CM_ContentDataExtension",
       0,
@@ -44,12 +78,17 @@
       "IsDeleted", "0",
       "CategoryId", @selectedCategoryId
     )
+
     SET @contentRowCount = RowCount(@contentRows)
+
   ENDIF
 
-  /* Variant rows for a selected DE */
+  /* ---------------------------------
+     7) Variant list for selected DE
+        (non-deleted, latest only)
+     --------------------------------- */
   IF NOT EMPTY(@selectedDataExtensionKey) THEN
-    /* Show only non-deleted rows for this content block. */
+
     SET @variantRows = LookupOrderedRows(
       @selectedDataExtensionKey,
       0,
@@ -57,9 +96,12 @@
       "IsDeleted", "0",
       "IsLatest",  "1"
     )
+
     SET @variantRowCount = RowCount(@variantRows)
+
   ENDIF
 ]%%
+
 
 %%[ IF NOT EMPTY(@selectedDataExtensionKey) THEN ]%%
 

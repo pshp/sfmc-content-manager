@@ -1,0 +1,73 @@
+<table class="list">
+  <thead>
+    <tr>
+      <th>Content Version</th>
+      <th>Status</th>
+      <th>CreatedDate</th>
+      <th>Last Modified Date</th>
+      <th class="actions">Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    %%[
+      IF @versionRowCount > 0 THEN
+
+        FOR @i = 1 TO @versionRowCount DO
+          SET @row            = Row(@versionRows, @i)
+          SET @cv             = Field(@row, "ContentVersion")
+          SET @cvStatus       = Field(@row, "Status")
+          SET @cvCreatedDate  = Field(@row, "CreatedDate")
+          SET @cvLastModified = Field(@row, "ModifiedDate")
+
+          /* Build base URL: selecting this CV */
+          SET @baseUrl = Concat(
+                          CloudPagesURL(3638),
+                          '?cat=',     @selectedCategoryId,
+                          '&de=',      @selectedDataExtensionKey,
+                          '&country=', @countryCode,
+                          '&lang=',    @languageCode,
+                          '&type=',    @variantType,
+                          '&version=', @variantVersion,
+                          '&cv=',      @cv
+                        )
+          SET @activateUrl   = Concat(@baseUrl, '&action=activate')
+          SET @deactivateUrl = Concat(@baseUrl, '&action=deactivate')
+    ]%%
+    <tr>
+      <td>
+        %%=v(@cv)=%%
+      </td>
+      <td>%%=v(@cvStatus)=%%</td>
+      <td>%%=v(@cvCreatedDate)=%%</td>
+      <td>%%=v(@cvLastModified)=%%</td>
+      <td class="actions">
+        %%[ IF @cvStatus == "Active" THEN ]%%
+          <a
+            href="%%=v(@deactivateUrl)=%%"
+            class="btn-link"
+            onclick="return confirm('Deactivate version %%=v(@cv)=%%?');"
+          >
+            Deactivate
+          </a>
+        %%[ ELSE ]%%
+          <a
+            href="%%=v(@activateUrl)=%%"
+            class="btn-link"
+            onclick="return confirm('Activate version %%=v(@cv)=%%?');"
+          >
+            Activate
+          </a>
+        %%[ ENDIF ]%%
+      </td>
+    </tr>
+    %%[
+        NEXT @i
+
+      ELSE
+    ]%%
+    <tr>
+      <td colspan="5">No versions found for this variant.</td>
+    </tr>
+    %%[ ENDIF ]%%
+  </tbody>
+</table>
