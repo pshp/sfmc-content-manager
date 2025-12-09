@@ -92,9 +92,9 @@
     SET @variantRows = LookupOrderedRows(
       @selectedDataExtensionKey,
       0,
-      "CountryCode ASC, LanguageCode ASC, Type ASC, Version ASC",
+      "CreatedDate ASC",
       "IsDeleted", "0",
-      "IsLatest",  "1"
+      "ContentVersion",  "1"
     )
 
     SET @variantRowCount = RowCount(@variantRows)
@@ -140,7 +140,6 @@
       <th>Language</th>
       <th>Type</th>
       <th>Version</th>
-      <th>Number of Content Versions</th>
       <th class="actions">Action</th>
     </tr>
   </thead>
@@ -154,14 +153,12 @@
           SET @languageCode          = Field(@variantRow, "LanguageCode")
           SET @variantType           = Field(@variantRow, "Type")
           SET @variantVersion        = Field(@variantRow, "Version")
-          SET @variantContentVersion = Field(@variantRow, "ContentVersion")
     ]%%
     <tr>
       <td>%%=v(@countryCode)=%%</td>
       <td>%%=v(@languageCode)=%%</td>
       <td>%%=v(@variantType)=%%</td>
       <td>%%=v(@variantVersion)=%%</td>
-      <td>%%=v(@variantContentVersion)=%%</td>
       <td class="actions">
         <!-- link to page 2 - view for specific content variant -->
         <a
