@@ -15,19 +15,19 @@ A simple **content manager CloudPage** for SFMC that lets marketers:
 
 ### Config / meta
 
-- **CM_Locale**
+- **DMC_Locale**
   - Which **(CountryCode, LanguageCode)** combinations currently have content variants.
   - Fields: `CountryCode`, `LanguageCode`, `CountryName`, `LanguageName`, `IsDefault`, `CreatedDate`, `IsDeleted`.
 
-- **CM_ContentCategory**
+- **DMC_ContentCategory**
   - High-level **sections** in the UI (left navigation).
   - Fields: `CategoryId`, `CategoryName`, `CreatedDate`, `Status`, `IsDeleted`.
 
-- **CM_ContentDataExtension**
+- **DMC_ContentDataExtensions**
   - Maps a **category** to one or more **content DEs**.
   - Fields: `DataExtensionKey`, `CategoryId`, `CreatedDate`, `ModifiedDate`, `IsDeleted`.
 
-- **CM_ContentFieldConfig**
+- **DMC_ContentFieldConfig**
   - For each `DataExtensionKey`, defines which **fields** are editable and in what **order**.
   - Fields: `DataExtensionKey`, `FieldName`, `SortOrder`, `FieldLength`.
 
@@ -39,20 +39,20 @@ A simple **content manager CloudPage** for SFMC that lets marketers:
 - Status / housekeeping:
   - `Status` (`Active` / `Inactive`), `IsLatest`, `CreatedDate`, `ModifiedDate`
 - Plus the actual **content fields** (e.g. `Headline`, `Subline`, `imageURL1`, `CTA_URL`, etc.)
-  referenced in `CM_ContentFieldConfig`.
+  referenced in `DMC_ContentFieldConfig`.
 
 ---
 
 ## How the CloudPage works
 
 1. **User picks a category**
-   → Look up its content DE(s) via `CM_ContentDataExtension`.
+   → Look up its content DE(s) via `	DMC_ContentDataExtensions`.
 
 2. **User picks locale + variant**
-   → Valid combos come from `CM_Locale` + existing rows in the content DE.
+   → Valid combos come from `DMC_Locale` + existing rows in the content DE.
 
 3. **Form is built dynamically**
-   → Fields come from `CM_ContentFieldConfig` for the chosen `DataExtensionKey`.
+   → Fields come from `DMC_ContentFieldConfig` for the chosen `DataExtensionKey`.
 
 4. **On Save**
    - Create or update a row in the content DE for the selected

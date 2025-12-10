@@ -37,7 +37,7 @@
   /* 5) Category name for page titles */
   IF NOT EMPTY(@selectedCategoryId) THEN
     SET @selectedCategoryName = Lookup(
-      "CM_ContentCategory",
+      "DMC_ContentCategory",
       "CategoryName",
       "CategoryId",
       @selectedCategoryId
@@ -48,7 +48,7 @@
   IF NOT EMPTY(@selectedCategoryId) AND EMPTY(@selectedDataExtensionKey) THEN
 
     SET @contentRows = LookupOrderedRows(
-      "CM_ContentDataExtension",
+      "	DMC_ContentDataExtensions",
       0,
       "CreatedDate ASC",
       "IsDeleted", "0",

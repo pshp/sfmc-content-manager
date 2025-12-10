@@ -48,7 +48,7 @@
   /* Category name (for title) */
   IF NOT EMPTY(@selectedCategoryId) THEN
     SET @selectedCategoryName = Lookup(
-      "CM_ContentCategory",
+      "DMC_ContentCategory",
       "CategoryName",
       "CategoryId",
       @selectedCategoryId
@@ -57,7 +57,7 @@
 
   /* Field configuration for this DE (drives form + save) */
   SET @contentFieldRows = LookupOrderedRows(
-    "CM_ContentFieldConfig",
+    "DMC_ContentFieldConfig",
     0,
     "SortOrder ASC",
     "DataExtensionKey",
