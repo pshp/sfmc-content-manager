@@ -1,3 +1,50 @@
+%%[
+  /* --- Values for add variant popup --- */
+
+  /* Locale options */
+  SET @localeRows = LookupOrderedRows(
+    "DMC_Locale",
+    0,
+    "CountryCode ASC, LanguageCode ASC",
+    "IsDeleted", "0"
+  )
+  SET @localeCount = RowCount(@localeRows)
+
+  /* Versions */
+  SET @versionRows = LookupOrderedRows(
+    "DMC_Version",
+    0,
+    "Version ASC",
+    "IsDeleted", "0"
+  )
+  SET @versionCount = RowCount(@versionRows)
+
+  /* Types */
+  SET @typeRows = LookupOrderedRows(
+    "DMC_Types",
+    0,
+    "Type ASC",
+    "IsDeleted", "0"
+  )
+  SET @typeCount = RowCount(@typeRows)
+
+]%%
+
+<!-- Add version "button" - a link that sets addVariant=1 -->
+<div style="text-align: right; margin-bottom: 0.5rem;">
+  <a
+    class="btn-link"
+    href="%%=Concat(
+            '?cat=', @selectedCategoryId,
+            '&de=',  @selectedDataExtensionKey,
+            '&addVariant=1'
+         )=%%"
+  >
+    &#x2795; add
+  </a>
+</div>
+
+<!-- main variants grid -->
 <table class="list">
   <thead>
     <tr>
@@ -38,7 +85,8 @@
                 '&version=', @variantVersion
           )=%%"
         >
-          edit</a>
+          edit
+        </a>
         <a class="btn-link" href="#">view</a>
 
         <!-- soft delete with confirm -->
@@ -58,3 +106,129 @@
     %%[ ENDIF ]%%
   </tbody>
 </table>
+
+<!-- Add Varaint Popup -->
+%%[ IF @addVariant == "1" THEN ]%%
+<div
+  style="
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.35);
+    z-index:999;
+    display:block;
+  "
+>
+  <div
+    style="
+      background:#fff;
+      max-width:480px;
+      margin:8% auto;
+      padding:1.5rem 2rem;
+      border-radius:4px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.2);
+    "
+  >
+    <h2 style="margin-top:0;">Add New Variant</h2>
+    <p style="margin:0 0 1rem 0; font-size:0.9rem; color:#555;">
+      Select locale, type and version for the new variant.
+    </p>
+
+    <!-- Form: currently UI only, no create logic yet -->
+    <form method="get" action="">
+      <!-- keep context when submitting -->
+      <input type="hidden" name="cat" value="%%=v(@selectedCategoryId)=%%" />
+      <input type="hidden" name="de"  value="%%=v(@selectedDataExtensionKey)=%%" />
+      <input type="hidden" name="addVariant" value="1" />
+
+      <!-- Locale selector from DMC_Locale -->
+      <div style="margin-bottom:0.75rem;">
+        <label
+          for="newLocale"
+          style="display:block; font-weight:bold; margin-bottom:0.25rem;"
+        >
+          Locale (Country &amp; Language)
+        </label>
+        <select id="newLocale" name="newLocale" style="width:100%;">
+          %%[
+            IF @localeCount > 0 THEN
+              FOR @i = 1 TO @localeCount DO
+                SET @locRow     = Row(@localeRows, @i)
+                SET @locCountry = Field(@locRow, "CountryCode")
+                SET @locLang    = Field(@locRow, "LanguageCode")
+          ]%%
+          <option value="%%=v(@locCountry)=%%|%%=v(@locLang)=%%">
+            %%=v(@locCountry)=%% - %%=v(@locLang)=%%
+          </option>
+          %%[ NEXT @i ELSE ]%%
+          <option value="">(No locales configured)</option>
+          %%[ ENDIF ]%%
+        </select>
+      </div>
+
+      <!-- Type dropdown from DMC_Types -->
+      <div style="margin-bottom:0.75rem;">
+        <label
+          for="newType"
+          style="display:block; font-weight:bold; margin-bottom:0.25rem;"
+        >
+          Type
+        </label>
+        <select id="newType" name="newType" style="width:100%;">
+          <option value="">– select –</option>
+          %%[
+            IF @typeCount > 0 THEN
+              FOR @t = 1 TO @typeCount DO
+                SET @typeRow   = Row(@typeRows, @t)
+                SET @typeValue = Field(@typeRow, "Type")
+          ]%%
+          <option value="%%=v(@typeValue)=%%">%%=v(@typeValue)=%%</option>
+          %%[ NEXT @t ENDIF ]%%
+        </select>
+      </div>
+
+      <!-- Version dropdown from DMC_Versions -->
+      <div style="margin-bottom:1rem;">
+        <label
+          for="newVersion"
+          style="display:block; font-weight:bold; margin-bottom:0.25rem;"
+        >
+          Version
+        </label>
+        <select id="newVersion" name="newVersion" style="width:100%;">
+          <option value="">– select –</option>
+          %%[
+            IF @versionCount > 0 THEN
+              FOR @v = 1 TO @versionCount DO
+                SET @verRow       = Row(@versionRows, @v)
+                SET @versionValue = Field(@verRow, "Version")
+          ]%%
+          <option value="%%=v(@versionValue)=%%">%%=v(@versionValue)=%%</option>
+          %%[ NEXT @v ENDIF ]%%
+        </select>
+      </div>
+
+      <div style="text-align:right;">
+        <!-- Close = same page without addVariant -->
+        <a
+          class="btn btn-secondary"
+          style="margin-right:0.5rem;"
+          href="%%=Concat(
+                  '?cat=', @selectedCategoryId,
+                  '&de=',  @selectedDataExtensionKey
+               )=%%
+        ">
+          Close
+        </a>
+
+        <!-- For now this just re-submits; we’ll hook logic later -->
+        <button
+          type="submit"
+          class="btn btn-secondary"
+        >
+          Next
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+%%[ ENDIF ]%%

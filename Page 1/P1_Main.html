@@ -6,6 +6,7 @@
   /* 1) Querystring: selection context */
   SET @selectedCategoryId       = RequestParameter("cat")
   SET @selectedDataExtensionKey = RequestParameter("de")
+  SET @addVariant               = RequestParameter("addVariant")
 
   /* 2) Querystring: soft-delete flags */
   SET @deleteFlag = RequestParameter("delete")
