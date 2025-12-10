@@ -4,17 +4,17 @@
   <!-- Page 1: variant overview -->
   <a
     class="btn-link"
-    href="%%=Concat(
-            CloudPagesURL(3637),
-            '?cat=', @selectedCategoryId,
-            '&de=',  @selectedDataExtensionKey
+    href="%%=CloudPagesURL(
+             @page1,
+            'cat', @selectedCategoryId,
+            'de',  @selectedDataExtensionKey
           )=%%"
   >
     ↩ back
   </a>
 </div>
 
-<table class="list" style="margin-bottom: 1rem">
+<table class="list">
   <tbody>
     <tr>
       <th>Data Extension:</th>

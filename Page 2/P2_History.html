@@ -21,16 +21,16 @@
           SET @rowId          = Field(@row, "_CustomObjectKey")
 
           /* Build base URL: selecting this CV + identity */
-          SET @baseUrl = Concat(
-                          CloudPagesURL(3638),
-                          '?cat=',     @selectedCategoryId,
-                          '&de=',      @selectedDataExtensionKey,
-                          '&country=', @countryCode,
-                          '&lang=',    @languageCode,
-                          '&type=',    @variantType,
-                          '&version=', @variantVersion,
-                          '&cv=',      @cv,
-                          '&id=',      @rowId
+          SET @baseUrl = CloudPagesURL(
+                          @page2,
+                          "cat",     @selectedCategoryId,
+                          "de",      @selectedDataExtensionKey,
+                          "country", @countryCode,
+                          "lang",    @languageCode,
+                          "type",    @variantType,
+                          "version", @variantVersion,
+                          "cv",      @cv,
+                          "id",      @rowId
                         )
           SET @activateUrl   = Concat(@baseUrl, '&action=activate')
           SET @deactivateUrl = Concat(@baseUrl, '&action=deactivate')

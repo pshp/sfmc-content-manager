@@ -22,16 +22,20 @@
 
             SET @contentRow       = Row(@contentRows, @contentIndex)
             SET @dataExtensionKey = Field(@contentRow, "DataExtensionKey")
+            SET @editLink = Concat(
+              '?cat=', @selectedCategoryId,
+              '&de=', @dataExtensionKey
+              )
       ]%%
       <tr>
         <td>
-          <a href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@dataExtensionKey)=%%">
+          <a href="%%=v(@editLink)=%%">
             %%=v(@dataExtensionKey)=%%
           </a>
         </td>
         <td class="actions">
           <a
-            href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@dataExtensionKey)=%%"
+            href="%%=v(@editLink)=%%"
             class="btn-link"
           >
             edit

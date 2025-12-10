@@ -9,18 +9,18 @@
 
 <form
   method="post"
-  action="%%=Concat(
-            CloudPagesURL(3638),
-            '?cat=',     @selectedCategoryId,
-            '&de=',      @selectedDataExtensionKey,
-            '&country=', @countryCode,
-            '&lang=',    @languageCode,
-            '&type=',    @variantType,
-            '&version=', @variantVersion,
-            '&cv=',      @contentVersion,
-            '&id=',      @formRowId
-          )=%%"
->
+  action="%%=CloudPagesURL(
+              @page2,
+              "cat",     @selectedCategoryId,
+              "de",      @selectedDataExtensionKey,
+              "country", @countryCode,
+              "lang",    @languageCode,
+              "type",    @variantType,
+              "version", @variantVersion,
+              "cv",      @contentVersion,
+              "id",      @formRowId
+        )=%%"
+  >
   <!-- Trigger flag (used by controller AMPscript) -->
   <input type="hidden" name="action" value="save" />
 
@@ -105,21 +105,21 @@
       save
     </button>
 
-    <!-- DISCARD: reload variant (keep current CV + id so page stays on same row) -->
+    <!-- eload variant (keep current CV + id so page stays on same row) -->
     <button
       class="btn btn-secondary"
       type="button"
-      onclick="window.location.href='%%=Concat(
-        CloudPagesURL(3638),
-        '?cat=',     @selectedCategoryId,
-        '&de=',      @selectedDataExtensionKey,
-        '&country=', @countryCode,
-        '&lang=',    @languageCode,
-        '&type=',    @variantType,
-        '&version=', @variantVersion,
-        '&cv=',      @contentVersion,
-        '&id=',      @formRowId
-      )=%%'"
+      onclick="window.location.href='%%=CloudPagesURL(
+                                      @page2,
+                                      "cat",     @selectedCategoryId,
+                                      "de",      @selectedDataExtensionKey,
+                                      "country", @countryCode,
+                                      "lang",    @languageCode,
+                                      "type",    @variantType,
+                                      "version", @variantVersion,
+                                      "cv",      @contentVersion,
+                                      "id",      @formRowId
+                                )=%%'"
     >
       discard changes
     </button>

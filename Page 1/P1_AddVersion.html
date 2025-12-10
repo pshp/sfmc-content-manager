@@ -1,12 +1,134 @@
 %%[
-  /* --- Values for add variant popup --- */
+  /* --- Insert + validation --- */
 
-  /* Check querystring in case it's not set elsewhere */
-  IF EMPTY(@addVariant) THEN
-    SET @addVariant = RequestParameter("addVariant")
+  SET @message     = ""
+  SET @messageType = "" /* error | info | success */
+  SET @messageBg   = ""
+
+  IF @addVariant == "1" THEN
+
+    /* Read form values only when popup is active */
+    SET @newLocale  = RequestParameter("newLocale")
+    SET @newType    = RequestParameter("newType")
+    SET @newVersion = RequestParameter("newVersion")
+    SET @reactivate = RequestParameter("reactivate")
+
+    /* Sticky selections */
+    SET @selectedLocale  = @newLocale
+    SET @selectedType    = @newType
+    SET @selectedVersion = @newVersion
+
+    /* Full trio provided → validate / act */
+    IF NOT EMPTY(@newLocale) AND NOT EMPTY(@newType) AND NOT EMPTY(@newVersion) THEN
+
+      /* Parse "CC|LL" */
+      SET @localeParts = BuildRowsetFromString(@newLocale, "|")
+      SET @newCountry  = ""
+      SET @newLanguage = ""
+
+      IF RowCount(@localeParts) >= 2 THEN
+        SET @newCountry  = Field(Row(@localeParts, 1), 1)
+        SET @newLanguage = Field(Row(@localeParts, 2), 1)
+      ENDIF
+
+      IF NOT EMPTY(@selectedDataExtensionKey) AND NOT EMPTY(@newCountry) AND NOT EMPTY(@newLanguage) THEN
+
+        /* Does this variant already exist? (no need for ordering) */
+        SET @existingRows = LookupRows(
+          @selectedDataExtensionKey,
+          "CountryCode",  @newCountry,
+          "LanguageCode", @newLanguage,
+          "Type",         @newType,
+          "Version",      @newVersion
+        )
+        SET @existingCount = RowCount(@existingRows)
+
+        IF @existingCount == 0 THEN
+
+          /* Create new variant */
+          InsertDE(
+            @selectedDataExtensionKey,
+            "CountryCode",     @newCountry,
+            "LanguageCode",    @newLanguage,
+            "Type",            @newType,
+            "Version",         @newVersion,
+            "ContentVersion",  "1",
+            "IsDeleted",       "0"
+          )
+
+          SET @message     = "Variant created successfully."
+          SET @messageType = "success"
+
+        ELSE
+
+          /* Existing variant */
+          SET @existingRow    = Row(@existingRows, 1)
+          SET @existingStatus = Field(@existingRow, "IsDeleted")
+
+          IF @existingStatus == "1" THEN
+
+            IF @reactivate == "1" THEN
+
+              /* Reactivate soft-deleted variant */
+              UpdateData(
+                @selectedDataExtensionKey,
+                4,
+                "CountryCode",  @newCountry,
+                "LanguageCode", @newLanguage,
+                "Type",         @newType,
+                "Version",      @newVersion,
+                "IsDeleted",    "0"
+              )
+
+              SET @message     = "Variant reactivated."
+              SET @messageType = "success"
+
+            ELSE
+
+              /* Ask for reactivation */
+              SET @message     = "This variant exists but has been deleted. Do you want to reactivate it?"
+              SET @messageType = "info"
+
+            ENDIF
+
+          ELSE
+
+            /* Active variant already exists */
+            SET @message     = "This variant already exists for this Data Extension."
+            SET @messageType = "error"
+
+          ENDIF
+
+        ENDIF
+
+      ELSE
+
+        SET @message     = "Please select a valid locale, type and version."
+        SET @messageType = "error"
+
+      ENDIF
+
+    /* Some input but not all three → validation error */
+    ELSEIF NOT EMPTY(@newLocale) OR NOT EMPTY(@newType) OR NOT EMPTY(@newVersion) THEN
+
+      SET @message     = "Please select a locale, type and version."
+      SET @messageType = "error"
+
+    ENDIF
+
   ENDIF
 
-  /* Locale options */
+  /* Decide background color for the message (super simple) */
+  IF @messageType == "error" THEN
+    SET @messageBg = "#ffe5e5"
+  ELSEIF @messageType == "success" THEN
+    SET @messageBg = "#e5ffe8"
+  ELSEIF @messageType == "info" THEN
+    SET @messageBg = "#e5f0ff"
+  ENDIF
+
+  /* --- Dropdown data --- */
+
   SET @localeRows = LookupOrderedRows(
     "DMC_Locale",
     0,
@@ -15,7 +137,6 @@
   )
   SET @localeCount = RowCount(@localeRows)
 
-  /* Versions */
   SET @versionRows = LookupOrderedRows(
     "DMC_Version",
     0,
@@ -24,7 +145,6 @@
   )
   SET @versionCount = RowCount(@versionRows)
 
-  /* Types */
   SET @typeRows = LookupOrderedRows(
     "DMC_Type",
     0,
@@ -36,71 +156,57 @@
 ]%%
 
 %%[ IF @addVariant == "1" THEN ]%%
-<div
-  style="
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,0.35);
-    z-index:999;
-    display:block;
-  "
->
-  <div
-    style="
-      background:#fff;
-      max-width:480px;
-      margin:8% auto;
-      padding:1.5rem 2rem;
-      border-radius:4px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.2);
-    "
-  >
-    <h2 style="margin-top:0;">Add New Variant</h2>
-    <p style="margin:0 0 1rem 0; font-size:0.9rem; color:#555;">
-      Select locale, type and version for the new variant.
-    </p>
+<div class="modal-overlay">
+  <div class="modal">
+    <h2>Add New Variant</h2>
+    <p>Select locale, type and version for the new variant.</p>
 
-    <!-- Form: currently UI only, no create logic yet -->
+    %%[ IF NOT EMPTY(@message) THEN ]%%
+      <div
+        class="modal-message
+              %%=IIF(@messageType == 'error','modal-message--error','')=%%
+              %%=IIF(@messageType == 'success','modal-message--success','')=%%
+              %%=IIF(@messageType == 'info','modal-message--info','')=%%"
+      >
+        %%=v(@message)=%%
+      </div>
+    %%[ ENDIF ]%%
+
     <form method="get" action="">
-      <!-- keep context when submitting -->
       <input type="hidden" name="cat" value="%%=v(@selectedCategoryId)=%%" />
       <input type="hidden" name="de"  value="%%=v(@selectedDataExtensionKey)=%%" />
       <input type="hidden" name="addVariant" value="1" />
 
-      <!-- Locale selector from DMC_Locale -->
-      <div style="margin-bottom:0.75rem;">
-        <label
-          for="newLocale"
-          style="display:block; font-weight:bold; margin-bottom:0.25rem;"
-        >
+      <!-- Locale -->
+      <div class="modal-field">
+        <label for="newLocale">
           Locale (Country &amp; Language)
         </label>
-        <select id="newLocale" name="newLocale" style="width:100%;">
+        <select id="newLocale" name="newLocale" class="modal-select">
           %%[
             IF @localeCount > 0 THEN
               FOR @i = 1 TO @localeCount DO
                 SET @locRow     = Row(@localeRows, @i)
                 SET @locCountry = Field(@locRow, "CountryCode")
                 SET @locLang    = Field(@locRow, "LanguageCode")
+                SET @optionVal  = Concat(@locCountry, "|", @locLang)
           ]%%
-          <option value="%%=v(@locCountry)=%%|%%=v(@locLang)=%%">
+          <option
+            value="%%=v(@optionVal)=%%"
+            %%[ IF @selectedLocale == @optionVal THEN ]%%selected="selected"%%[ ENDIF ]%%
+          >
             %%=v(@locCountry)=%% - %%=v(@locLang)=%%
           </option>
-          %%[ NEXT @i ELSE ]%%
-          <option value="">(No locales configured)</option>
-          %%[ ENDIF ]%%
+          %%[ NEXT @i ENDIF ]%%
         </select>
       </div>
 
-      <!-- Type dropdown from DMC_Type -->
-      <div style="margin-bottom:0.75rem;">
-        <label
-          for="newType"
-          style="display:block; font-weight:bold; margin-bottom:0.25rem;"
-        >
+      <!-- Type -->
+      <div class="modal-field">
+        <label for="newType">
           Type
         </label>
-        <select id="newType" name="newType" style="width:100%;">
+        <select id="newType" name="newType" class="modal-select">
           <option value="">– select –</option>
           %%[
             IF @typeCount > 0 THEN
@@ -108,20 +214,22 @@
                 SET @typeRow   = Row(@typeRows, @t)
                 SET @typeValue = Field(@typeRow, "Type")
           ]%%
-          <option value="%%=v(@typeValue)=%%">%%=v(@typeValue)=%%</option>
+          <option
+            value="%%=v(@typeValue)=%%"
+            %%[ IF @selectedType == @typeValue THEN ]%%selected="selected"%%[ ENDIF ]%%
+          >
+            %%=v(@typeValue)=%%
+          </option>
           %%[ NEXT @t ENDIF ]%%
         </select>
       </div>
 
-      <!-- Version dropdown from DMC_Version -->
-      <div style="margin-bottom:1rem;">
-        <label
-          for="newVersion"
-          style="display:block; font-weight:bold; margin-bottom:0.25rem;"
-        >
+      <!-- Version -->
+      <div class="modal-field">
+        <label for="newVersion">
           Version
         </label>
-        <select id="newVersion" name="newVersion" style="width:100%;">
+        <select id="newVersion" name="newVersion" class="modal-select">
           <option value="">– select –</option>
           %%[
             IF @versionCount > 0 THEN
@@ -129,31 +237,38 @@
                 SET @verRow       = Row(@versionRows, @v)
                 SET @versionValue = Field(@verRow, "Version")
           ]%%
-          <option value="%%=v(@versionValue)=%%">%%=v(@versionValue)=%%</option>
+          <option
+            value="%%=v(@versionValue)=%%"
+            %%[ IF @selectedVersion == @versionValue THEN ]%%selected="selected"%%[ ENDIF ]%%
+          >
+            %%=v(@versionValue)=%%
+          </option>
           %%[ NEXT @v ENDIF ]%%
         </select>
       </div>
 
-      <div style="text-align:right;">
-        <!-- Close = same page without addVariant -->
+      <div class="modal-footer">
         <a
-          class="btn btn-secondary"
-          style="margin-right:0.5rem;"
-          href="%%=Concat(
-                  '?cat=', @selectedCategoryId,
-                  '&de=',  @selectedDataExtensionKey
-               )=%%
-        ">
-          Close
-        </a>
-
-        <!-- For now this just re-submits; we’ll hook logic later -->
-        <button
-          type="submit"
-          class="btn btn-secondary"
+          class="btn-link"
+          href="%%=Concat('?cat=', @selectedCategoryId, '&de=', @selectedDataExtensionKey)=%%"
         >
-          Next
-        </button>
+          Close
+      </a>
+
+        %%[ IF @messageType == "info" THEN ]%%
+          <button
+            type="submit"
+            name="reactivate"
+            value="1"
+            class="btn btn-secondary"
+          >
+            Reactivate
+          </button>
+        %%[ ELSE ]%%
+          <button type="submit" class="btn btn-secondary">
+            Next
+          </button>
+        %%[ ENDIF ]%%
       </div>
     </form>
   </div>

@@ -3,7 +3,7 @@
   SET @addVariant = RequestParameter("addVariant")
 ]%%
 
-<!-- Add version "button" - a link that sets addVariant=1 -->
+<!-- Add version button - sets addVariant=1 -->
 <div style="text-align: right; margin-bottom: 0.5rem;">
   <a
     class="btn-link"
@@ -38,6 +38,8 @@
           SET @languageCode   = Field(@variantRow, "LanguageCode")
           SET @variantType    = Field(@variantRow, "Type")
           SET @variantVersion = Field(@variantRow, "Version")
+
+
     ]%%
     <tr>
       <td>%%=v(@countryCode)=%%</td>
@@ -48,14 +50,14 @@
         <!-- link to page 2 - edit specific content variant -->
         <a
           class="btn-link"
-          href="%%=Concat(
-                CloudPagesURL(3638),
-                '?cat=',     @selectedCategoryId,
-                '&de=',      @selectedDataExtensionKey,
-                '&country=', @countryCode,
-                '&lang=',    @languageCode,
-                '&type=',    @variantType,
-                '&version=', @variantVersion
+          href="%%=CloudPagesURL(
+                @page2,
+                'cat',     @selectedCategoryId,
+                'de',      @selectedDataExtensionKey,
+                'country', @countryCode,
+                'lang',    @languageCode,
+                'type',    @variantType,
+                'version', @variantVersion
           )=%%"
         >
           edit
@@ -65,7 +67,15 @@
         <!-- soft delete with confirm -->
         <a
           class="btn-link"
-          href="?cat=%%=v(@selectedCategoryId)=%%&de=%%=v(@selectedDataExtensionKey)=%%&delete=1&country=%%=v(@countryCode)=%%&lang=%%=v(@languageCode)=%%&type=%%=v(@variantType)=%%&version=%%=v(@variantVersion)=%%"
+          href="%%=Concat(
+                  '?cat=',     @selectedCategoryId,
+                  '&de=',      @selectedDataExtensionKey,
+                  '&delete=1',
+                  '&country=', @countryCode,
+                  '&lang=',    @languageCode,
+                  '&type=',    @variantType,
+                  '&version=', @variantVersion
+              )=%%"
           onclick="return confirm('Do you really want to delete this variant?');"
         >
           delete

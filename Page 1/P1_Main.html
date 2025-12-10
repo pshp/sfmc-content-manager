@@ -1,7 +1,5 @@
 %%[
-  /* --------------------------------------------------
-     Page 1: Variant overview for a content DE
-     -------------------------------------------------- */
+  /* --- Page 1: Variant overview for a content DE -- */
 
   /* 1) Querystring: selection context */
   SET @selectedCategoryId       = RequestParameter("cat")
@@ -89,7 +87,7 @@
 
   <div style="text-align: right; margin-bottom: 0.5rem;">
     <a
-      href="%%=IIF(EMPTY(@selectedCategoryId),'?',Concat('?cat=',@selectedCategoryId))=%%"
+      href="%%=IIF(EMPTY(@selectedCategoryId),'',Concat('?cat=',@selectedCategoryId))=%%"
       class="btn-link"
     >
       ↩ back

@@ -27,7 +27,7 @@
              SET @activeClass = ""
            ENDIF
     ]%%
-      <a href="%%=Concat(CloudPagesUrl(3637), '?cat=', @categoryId)=%%"
+      <a href="%%=CloudPagesUrl(@page1, 'cat', @categoryId)=%%"
          class="nav-link%%=v(@activeClass)=%%">
         %%=v(@categoryName)=%%
       </a>
