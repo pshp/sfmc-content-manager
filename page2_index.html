@@ -9,14 +9,20 @@
       href="https://mcf3ylxg67h42hhkc8yccdpmdjt1.pub.sfmc-content.com/xos4rfhkxdn"
     />
   </head>
+
   <body>
-    %%=ContentBlockByName("DMC_Top_Bar")=%%
+    %%[
+      SET @page1 = "3637"
+      SET @page2 = "3638"
+    ]%%
 
+    %%=ContentBlockByKey("DMC_Top_Bar")=%%
     <div class="app">
-      %%=ContentBlockByName("DMC_Navigation")=%%
-
+      %%=ContentBlockByKey("DMC_Navigation")=%%
       <main class="main">
-        <section class="card">%%=ContentBlockByName("DMC_Page_1")=%%</section>
+        <section class="card">
+          %%=ContentBlockByKey("DMC_P2_VariantEdit_Main")=%%
+        </section>
       </main>
     </div>
   </body>
