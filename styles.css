@@ -115,13 +115,60 @@ body {
 }
 
 .btn-link {
-  border: none;
-  background: none;
   padding: 0 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
 }
 
 .btn-back {
-  card-title
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+/* --- Overlay --- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.modal {
+  background: #fff;
+  max-width: 480px;
+  width: 100%;
+  margin: 4rem auto;
+  padding: 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.modal-field {
+  margin-bottom: 0.75rem;
+}
+
+.modal-select {
+  width: 100%;
+}
+
+.modal-footer {
+  text-align: right;
+}
+
+.modal-message {
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.modal-message--error {
+  background: #ffe5e5;
+}
+
+.modal-message--success {
+  background: #e5ffe8;
+}
+
+.modal-message--info {
+  background: #e5f0ff;
 }
